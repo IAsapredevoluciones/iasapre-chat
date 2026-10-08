@@ -28,6 +28,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--az);box-
 .btn:disabled{opacity:.6}
 .hid{display:none}
 .tiny{font-size:11px;color:#9ca3af;margin-top:8px}
+/* resultado / chat */
 #res{display:none;max-width:760px;margin:0 auto 60px;padding:0 20px}
 #res.on{display:block}
 .chat{background:var(--w);border-radius:16px;box-shadow:0 12px 40px rgba(40,44,55,.08);overflow:hidden}
@@ -97,32 +98,54 @@ footer{text-align:center;font-size:12px;color:#9ca3af;padding:30px 20px}
 </section>
 <footer>IAsapre · iasapre.cl · Orientación en salud previsional. Landing de prueba del orientador automático de preexistencias.</footer>
 
+<script src="/kb_offline.js"></script>
 <script>
-const ORIENT_SYSTEM = "Eres Nico, asesor de IAsapre (iasapre.cl), servicio chileno gratuito de orientación en salud previsional. Escribes el PRIMER mensaje a una persona que llenó el formulario de iasapre.cl declarando preexistencias que, en la práctica, hacen que ninguna otra isapre la acepte.\n\nTU OBJETIVO: que la persona sienta que un asesor real leyó su caso, le diga la verdad sin rodeos pero con calidez, le dé valor concreto HOY y le ofrezca seguir con un ejecutivo humano por WhatsApp.\n\nCÓMO ESCRIBES\n- Español de Chile, de tú, cercano, directo, cero tono corporativo o de bot. Como un WhatsApp escrito por una persona que sabe del tema. Sin encabezados, sin viñetas de más de 3 puntos, sin emojis excesivos (máximo 2 en todo el mensaje).\n- Nómbrala por su nombre de pila una vez al inicio. Usa 1 o 2 datos concretos de su formulario (isapre, comuna/región, renta aproximada, cargas, clínica de interés) para que se note que es para ella.\n- Largo: 140 a 220 palabras para WhatsApp. Párrafos cortos.\n- Nunca uses las palabras \"cacho\", \"rechazada\", \"no asegurable\", \"riesgo\" o \"no te van a querer\". Di la verdad así: \"con lo que declaras, hoy las isapres no te van a aceptar como afiliada nueva; no es personal, es cómo funciona su suscripción\".\n- Nunca inventes nombres de planes, precios ni porcentajes. Si en CONTEXTO hay planes concretos de su isapre, puedes nombrarlos; si no, habla de tipos de alternativa dentro de su isapre (plan preferente en la clínica que le interesa, plan con mejor % hospitalario, ajustar el plan a su 7%, revisar cargas, usar excedentes) y deja el detalle para la llamada.\n- Nunca des diagnósticos ni consejos médicos.\n\nESTRUCTURA (sin títulos, fluida)\n1. Saludo con nombre + \"leí tu formulario\" + referencia a su situación.\n2. La verdad: por qué un cambio de isapre hoy no es camino, con una frase sobre la Declaración de Salud y por qué NO le conviene omitir la preexistencia (la isapre puede negar cobertura y terminar el contrato).\n3. Lo que sí se puede hacer, en su caso, dentro de su isapre actual: 2 o 3 movimientos concretos ligados a su 7%, sus cargas y la clínica que le interesa (cambio de plan dentro de la misma isapre no exige nueva declaración de salud; su cobertura de la preexistencia se mantiene). Si tiene renta baja o muchas cargas, menciona Fonasa + seguro complementario como alternativa honesta. Si corresponde, recuerda GES/CAEC/Ley Ricarte Soto para su patología en una línea.\n4. Cierre: ofrecer revisar su carátula con un ejecutivo, gratis y sin compromiso, por WhatsApp al +56 9 8538 0357; pedir que responda con \"sí\" o le escriba directo; una pregunta corta para que conteste (ej. qué clínica usa más).\n\nDevuelve SOLO el texto del mensaje, sin comillas ni explicaciones.";
+const KB = "";                 // base de conocimiento del chatbot IAsapre
+const ORIENT_SYSTEM = "Eres Nico, asesor de IAsapre (iasapre.cl), servicio chileno gratuito de orientación en salud previsional. Escribes el PRIMER mensaje a una persona que llenó el formulario de iasapre.cl declarando preexistencias que, en la práctica, hacen que ninguna otra isapre la acepte.\n\nTU OBJETIVO: que la persona sienta que un asesor real leyó su caso, le diga la verdad sin rodeos pero con calidez, le dé valor concreto HOY y le ofrezca seguir con un ejecutivo humano por WhatsApp.\n\nCÓMO ESCRIBES\n- Español de Chile, de tú, cercano, directo, cero tono corporativo o de bot. Como un WhatsApp escrito por una persona que sabe del tema. Sin encabezados, sin viñetas de más de 3 puntos, sin emojis excesivos (máximo 2 en todo el mensaje).\n- Nómbrala por su nombre de pila una vez al inicio. Usa 1 o 2 datos concretos de su formulario (isapre, comuna/región, renta aproximada, cargas, clínica de interés) para que se note que es para ella.\n- Largo: 140 a 220 palabras para WhatsApp. Párrafos cortos.\n- Nunca uses las palabras \"cacho\", \"rechazada\", \"no asegurable\", \"riesgo\" o \"no te van a querer\". Di la verdad así: \"con lo que declaras, hoy las isapres no te van a aceptar como afiliada nueva; no es personal, es cómo funciona su suscripción\".\n- Nunca inventes nombres de planes, precios ni porcentajes. Si en CONTEXTO hay planes concretos de su isapre, puedes nombrarlos; si no, habla de tipos de alternativa dentro de su isapre (plan preferente en la clínica que le interesa, plan con mejor % hospitalario, ajustar el plan a su 7%, revisar cargas, usar excedentes) y deja el detalle para la llamada.\n- Nunca des diagnósticos ni consejos médicos.\n\nESTRUCTURA (sin títulos, fluida)\n1. Saludo con nombre + \"leí tu formulario\" + referencia a su situación.\n2. La verdad: por qué un cambio de isapre hoy no es camino, con una frase sobre la Declaración de Salud y por qué NO le conviene omitir la preexistencia (la isapre puede negar cobertura y terminar el contrato).\n3. Lo que sí se puede hacer, en su caso, dentro de su isapre actual: 2 o 3 movimientos concretos ligados a su 7%, sus cargas y la clínica que le interesa (cambio de plan dentro de la misma isapre no exige nueva declaración de salud; su cobertura de la preexistencia se mantiene). Si tiene renta baja o muchas cargas, menciona Fonasa + seguro complementario como alternativa honesta. Si corresponde, recuerda GES/CAEC/Ley Ricarte Soto para su patología en una línea.\n4. Cierre: ofrecer revisar su carátula con un ejecutivo, gratis y sin compromiso, por WhatsApp al +56 9 8538 0357; pedir que responda con \"sí\" o le escriba directo; una pregunta corta para que conteste (ej. qué clínica usa más).\n\nDevuelve SOLO el texto del mensaje, sin comillas ni explicaciones."; // instrucciones del orientador (tono Nico)
 const WSP = "56985380357", WSP_HUMANO = "+56 9 8538 0357";
+const NETLIFY = /netlify\.app$|iasapre\.cl$/.test(location.hostname);
+/**
+ * Reglas de afiliabilidad (criterio práctico de mercado, oct-2026).
+ * Nivel: "no_afiliable" | "restringible" | "evaluar" | "sin_impacto"
+ * Las isapres no publican listas; esto refleja la práctica habitual de sus áreas de suscripción
+ * y los criterios que IAsapre usa para no hacer perder tiempo a la persona.
+ */
 const REGLAS = [
-  { id: "diabetes", corto: "diabetes", nivel: "no_afiliable", nombre: "diabetes (tipo 1 o 2)", patrones: /diabet|insulin|glicemia alta|hba1c|metformin|dm2|dm1/i },
-  { id: "cancer_reciente", corto: "un cáncer reciente", nivel: "no_afiliable", nombre: "cáncer con menos de 5 años desde el alta", patrones: /c[aá]ncer|tumor maligno|neoplasia|quimio|radioterapia|leucemia|linfoma|melanoma|carcinoma|oncol/i, excepcion: /hace (m[aá]s de )?(5|6|7|8|9|1\d|2\d) a[nñ]os|m[aá]s de (cinco|5) a[nñ]os|olvido oncol/i, nota: "Si ya pasaron 5 años desde el fin del tratamiento sin recaída, aplica la Ley de Olvido Oncológico y no se declara." },
-  { id: "obesidad", corto: "obesidad o cirugía bariátrica", nivel: "no_afiliable", nombre: "obesidad (IMC sobre ~35) o cirugía bariátrica", patrones: /obesidad|obeso|imc\s*(3[5-9]|4\d|5\d)|bari[aá]tric|bypass g[aá]strico|manga g[aá]strica|bal[oó]n g[aá]strico/i },
-  { id: "renal", corto: "insuficiencia renal", nivel: "no_afiliable", nombre: "insuficiencia renal crónica / diálisis", patrones: /insuficiencia renal|di[aá]lisis|enfermedad renal cr[oó]nica/i },
+  { id: "diabetes", corto: "diabetes", nivel: "no_afiliable", nombre: "diabetes (tipo 1 o 2)",
+    patrones: /diabet|insulin|glicemia alta|hba1c|metformin|dm2|dm1/i },
+  { id: "cancer_reciente", corto: "un cáncer reciente", nivel: "no_afiliable", nombre: "cáncer con menos de 5 años desde el alta",
+    patrones: /c[aá]ncer|tumor maligno|neoplasia|quimio|radioterapia|leucemia|linfoma|melanoma|carcinoma|oncol/i,
+    excepcion: /hace (m[aá]s de )?(5|6|7|8|9|1\d|2\d) a[nñ]os|m[aá]s de (cinco|5) a[nñ]os|olvido oncol/i,
+    nota: "Si ya pasaron 5 años desde el fin del tratamiento sin recaída, aplica la Ley de Olvido Oncológico y no se declara." },
+  { id: "obesidad", corto: "obesidad o cirugía bariátrica", nivel: "no_afiliable", nombre: "obesidad (IMC sobre ~35) o cirugía bariátrica",
+    patrones: /obesidad|obeso|imc\s*(3[5-9]|4\d|5\d)|bari[aá]tric|bypass g[aá]strico|manga g[aá]strica|bal[oó]n g[aá]strico/i },
+  { id: "renal", corto: "insuficiencia renal", nivel: "no_afiliable", nombre: "insuficiencia renal crónica / diálisis",
+    patrones: /insuficiencia renal|di[aá]lisis|enfermedad renal cr[oó]nica/i },
   { id: "trasplante", corto: "un trasplante", nivel: "no_afiliable", nombre: "trasplante de órgano", patrones: /trasplant/i },
   { id: "vih", corto: "VIH", nivel: "no_afiliable", nombre: "VIH", patrones: /\bvih\b|\bhiv\b|\bsida\b/i },
-  { id: "cardio_grave", corto: "un problema cardíaco importante", nivel: "no_afiliable", nombre: "cardiopatía grave (infarto, bypass, stent, insuficiencia cardíaca)", patrones: /infarto|bypass coronario|stent|insuficiencia card[ií]aca|marcapasos|fibrilaci[oó]n/i },
+  { id: "cardio_grave", corto: "un problema cardíaco importante", nivel: "no_afiliable", nombre: "cardiopatía grave (infarto, bypass, stent, insuficiencia cardíaca)",
+    patrones: /infarto|bypass coronario|stent|insuficiencia card[ií]aca|marcapasos|fibrilaci[oó]n/i },
   { id: "hepatica", corto: "una enfermedad hepática crónica", nivel: "no_afiliable", nombre: "cirrosis / hepatitis crónica", patrones: /cirrosis|hepatitis (b|c)\b|hepatitis cr[oó]nica/i },
-  { id: "neuro_grave", corto: "una enfermedad neurológica", nivel: "no_afiliable", nombre: "enfermedad neurológica grave (esclerosis múltiple, Parkinson, ACV)", patrones: /esclerosis|parkinson|\bacv\b|accidente cerebro ?vascular|epilepsia refractaria|\bela\b/i },
-  { id: "autoinmune_activa", corto: "una enfermedad autoinmune en tratamiento", nivel: "no_afiliable", nombre: "enfermedad autoinmune activa con tratamiento biológico", patrones: /lupus|artritis reumatoide|crohn|colitis ulcerosa|biol[oó]gico|espondilitis/i },
-  { id: "psiquiatrico_grave", corto: "un diagnóstico psiquiátrico mayor", nivel: "no_afiliable", nombre: "trastorno psiquiátrico grave", patrones: /bipolar|esquizofren|hospitalizaci[oó]n psiqui[aá]trica|psicosis/i },
+  { id: "neuro_grave", corto: "una enfermedad neurológica", nivel: "no_afiliable", nombre: "enfermedad neurológica grave (esclerosis múltiple, Parkinson, ACV)",
+    patrones: /esclerosis|parkinson|\bacv\b|accidente cerebro ?vascular|epilepsia refractaria|\bela\b/i },
+  { id: "autoinmune_activa", corto: "una enfermedad autoinmune en tratamiento", nivel: "no_afiliable", nombre: "enfermedad autoinmune activa con tratamiento biológico",
+    patrones: /lupus|artritis reumatoide|crohn|colitis ulcerosa|biol[oó]gico|espondilitis/i },
+  { id: "psiquiatrico_grave", corto: "un diagnóstico psiquiátrico mayor", nivel: "no_afiliable", nombre: "trastorno psiquiátrico grave",
+    patrones: /bipolar|esquizofren|hospitalizaci[oó]n psiqui[aá]trica|psicosis/i },
+
   { id: "hta", nivel: "restringible", nombre: "hipertensión controlada", patrones: /hipertensi[oó]n|presi[oó]n alta|\bhta\b|losart|enalapril/i },
   { id: "tiroides", nivel: "restringible", nombre: "hipotiroidismo / hipertiroidismo", patrones: /tiroid|levotiroxina|eutirox|hashimoto/i },
   { id: "asma", nivel: "restringible", nombre: "asma", patrones: /\basma|salbutamol|inhalador/i },
   { id: "depresion_ansiedad", nivel: "restringible", nombre: "depresión o ansiedad en tratamiento", patrones: /depresi[oó]n|ansiedad|sertralina|escitalopram|fluoxetina|psiquiatra|psic[oó]log/i },
   { id: "colesterol", nivel: "restringible", nombre: "dislipidemia", patrones: /colesterol|dislipid|atorvastatina|triglic/i },
-  { id: "embarazo", nivel: "restringible", nombre: "embarazo en curso", patrones: /embaraz|gestaci[oó]n|semanas de embarazo/i, nota: "El parto se cubre, pero puede quedar con restricción si el embarazo era previo al contrato." },
+  { id: "embarazo", nivel: "restringible", nombre: "embarazo en curso", patrones: /embaraz|gestaci[oó]n|semanas de embarazo/i,
+    nota: "El parto se cubre, pero puede quedar con restricción si el embarazo era previo al contrato." },
   { id: "osteo", nivel: "restringible", nombre: "patología osteoarticular (hernia discal, artrosis, rodilla, hombro)", patrones: /hernia (discal|lumbar|cervical)|artrosis|menisco|ligamento|hombro|columna|escoliosis/i },
   { id: "apnea", nivel: "restringible", nombre: "apnea del sueño", patrones: /apnea|cpap/i },
   { id: "sobrepeso", nivel: "restringible", nombre: "sobrepeso (IMC 30–35)", patrones: /sobrepeso|imc\s*3[0-4]/i },
   { id: "cirugia_pasada", nivel: "evaluar", nombre: "cirugía previa", patrones: /operad|cirug[ií]a|intervenci[oó]n|ap[eé]ndice|ves[ií]cula|hernia inguinal/i },
 ];
+
 function clasificar(detalle = "", extras = {}) {
   const texto = String(detalle || "").trim();
   const imc = extras.imc ? Number(extras.imc) : null;
@@ -130,6 +153,7 @@ function clasificar(detalle = "", extras = {}) {
   if (!texto && !imc) return { nivel: "sin_impacto", hallazgos: [], resumen: "Sin preexistencias declaradas." };
   if (imc && imc >= 35) hallazgos.push({ id: "obesidad", corto: "obesidad o cirugía bariátrica", nivel: "no_afiliable", nombre: `IMC ${imc} (obesidad)` });
   else if (imc && imc >= 30) hallazgos.push({ id: "sobrepeso", nivel: "restringible", nombre: `IMC ${imc} (sobrepeso)` });
+
   for (const r of REGLAS) {
     if (r.patrones.test(texto)) {
       if (r.excepcion && r.excepcion.test(texto)) { hallazgos.push({ id: r.id + "_superado", nivel: "evaluar", nombre: r.nombre + " (posible olvido oncológico)", nota: r.nota }); continue; }
@@ -137,6 +161,7 @@ function clasificar(detalle = "", extras = {}) {
     }
   }
   if (!hallazgos.length && texto) hallazgos.push({ id: "otro", nivel: "evaluar", nombre: "condición declarada: " + texto.slice(0, 80) });
+
   const orden = { no_afiliable: 3, restringible: 2, evaluar: 1, sin_impacto: 0 };
   const nivel = hallazgos.reduce((m, h) => (orden[h.nivel] > orden[m] ? h.nivel : m), "sin_impacto");
   const resumen = {
@@ -147,9 +172,15 @@ function clasificar(detalle = "", extras = {}) {
   }[nivel];
   return { nivel, hallazgos, resumen };
 }
+
+
+/** Mensaje humanizado sin LLM (respaldo si Claude no responde). Varía frases con el nombre como semilla. */
+
 const pick = (arr, seed) => arr[seed % arr.length];
 const seedOf = s => [...String(s || "x")].reduce((a, c) => a + c.charCodeAt(0), 0);
+
 function nombrePila(n = "") { return String(n).trim().split(/\s+/)[0] || "hola"; }
+
 function generar(lead, clasif, planes = []) {
   const s = seedOf(lead.nombre + (lead.comuna || ""));
   const n = nombrePila(lead.nombre);
@@ -159,41 +190,60 @@ function generar(lead, clasif, planes = []) {
   const clinica = lead.clinica_interes ? ` (${lead.clinica_interes}, por lo que nos cuentas)` : "";
   const lugar = lead.comuna || lead.region ? ` desde ${lead.comuna || lead.region}` : "";
   const cargas = lead.cargas && !/no|0/i.test(String(lead.cargas)) ? `, con ${lead.cargas} carga${/^1\b/.test(String(lead.cargas)) ? "" : "s"}` : "";
+
   const saludo = pick([
     `Hola ${n}, soy Nico de IAsapre. Leí tu formulario${lugar}${cargas} y te quiero contestar con la verdad, porque para eso nos escribiste.`,
     `${n}, hola. Nico de IAsapre por acá. Revisé lo que nos mandaste${lugar}${cargas} y prefiero ser directo contigo desde el primer mensaje.`,
     `Hola ${n}, te escribe Nico, de IAsapre. Vi tu formulario${lugar}${cargas} y hay algo importante que tienes que saber antes de seguir cotizando.`,
   ], s);
+
   const verdad = pick([
     `Con ${condTxt}, hoy las isapres no te van a aceptar como nueva afiliación. No es algo personal: así funciona su suscripción, y tampoco te conviene omitirlo en la Declaración de Salud, porque después pueden negarte cobertura y terminar el contrato.`,
     `Te lo digo sin vueltas: declarando ${condTxt}, ninguna isapre te va a abrir la puerta como nueva afiliación. Y ocultarlo sería peor, porque si lo descubren pueden dejarte sin cobertura y cerrar el contrato.`,
   ], s + 1);
+
   let opciones;
   if (isapre) {
-    opciones = pick([
-      `Lo bueno es que dentro de ${isapre} sí te puedes mover: cambiar de plan en tu misma isapre no exige nueva Declaración de Salud y tu cobertura actual se mantiene. Normalmente se puede ajustar el plan a tu 7%, buscar uno preferente en la clínica que más usas${clinica} y revisar si tus excedentes y cargas están bien aprovechados.`,
-      `La jugada está dentro de ${isapre}: ahí no te piden Declaración de Salud nueva y no pierdes nada de lo que ya tienes cubierto. Se puede buscar un plan con mejor cobertura hospitalaria en la clínica que te interesa${clinica}, ajustar lo que pagas sobre el 7% y ordenar cargas y excedentes.`,
-    ], s + 2);
+    const lista = planes.length
+      ? `En ${isapre} vi alternativas que podrían calzar mejor con tu 7%, por ejemplo ${planes.slice(0, 2).map(p => p.nombre).join(" o ")}; hay que mirar el detalle de % y topes.`
+      : pick([
+          `Lo bueno es que dentro de ${isapre} sí te puedes mover: cambiar de plan en tu misma isapre no exige nueva Declaración de Salud y tu cobertura actual se mantiene. Normalmente se puede ajustar el plan a tu 7%, buscar uno preferente en la clínica que más usas${clinica} y revisar si tus excedentes y cargas están bien aprovechados.`,
+          `La jugada está dentro de ${isapre}: ahí no te piden Declaración de Salud nueva y no pierdes nada de lo que ya tienes cubierto. Se puede buscar un plan con mejor cobertura hospitalaria en la clínica que te interesa${clinica}, ajustar lo que pagas sobre el 7% y ordenar cargas y excedentes.`,
+        ], s + 2);
+    opciones = lista;
   } else {
     opciones = `Lo honesto es mirar Fonasa con calma: no tiene preexistencias ni exclusiones, la red pública es con copago cero y en libre elección puedes usar clínicas privadas con bonos. Si quieres más cobertura en privados, un seguro complementario sobre Fonasa suele rendir más que forzar una isapre.`;
   }
-  const extra = clasif.hallazgos.some(h => /diabetes|cancer|renal|cardio|vih|autoinmune|neuro/.test(h.id)) ? ` Además, revisa que tu patología esté activada en GES si corresponde: baja mucho el copago.` : "";
+  const extra = clasif.hallazgos.some(h => /diabetes|cancer|renal|cardio|vih|autoinmune|neuro/.test(h.id))
+    ? ` Además, revisa que tu patología esté activada en GES si corresponde: baja mucho el copago.`
+    : "";
+
   const cierre = pick([
     `Si quieres, un ejecutivo revisa tu carátula contigo, gratis y sin compromiso, por WhatsApp al ${WSP_HUMANO}. Respóndeme con un "sí" y te escribo. ¿Qué clínica es la que más usas hoy?`,
     `Te propongo que lo veamos juntos: me mandas tu carátula por WhatsApp al ${WSP_HUMANO} y te digo qué plan de tu isapre te rinde más. Es gratis. ¿Te acomoda que te escriba hoy?`,
   ], s + 3);
+
   return [saludo, verdad, opciones + extra, cierre].join("\n\n");
 }
-async function llm(systemText, turns, onText){
-  const msgs=turns.map((m,i)=>i===0?{role:"user",content:systemText+"\n\n=== INICIO ===\n"+m.content}:m);
-  const r=await fetch("/.netlify/functions/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:msgs})});
-  if(!r.ok) throw new Error("backend "+r.status);
-  return (await r.json()).text;
+
+
+
+let sample=null; if(window.claude&&window.claude.use){window.claude.use("sample").then(s=>sample=s).catch(()=>{})}
+
+async function llm(systemText, turns, onText){ return Promise.race([llmRaw(systemText,turns,onText), new Promise((_,rej)=>setTimeout(()=>rej(new Error("timeout")),15000))]); }
+async function llmRaw(systemText, turns, onText){
+  if(sample){ const t=turns.map((m,i)=>i===0?{role:"user",content:systemText+"\n\n=== INICIO ===\n"+m.content}:m); const {text}=await sample(t,{cache:false,modelTier:"default",onText:({text})=>onText&&onText(text)}); return text; }
+  if(NETLIFY){ const r=await fetch("/.netlify/functions/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:turns.map((m,i)=>i===0?{role:"user",content:systemText+"\n\n=== INICIO ===\n"+m.content}:m)})}); if(!r.ok) throw new Error("backend "+r.status); return (await r.json()).text; }
+  throw new Error("sin motor");
 }
+
 let lead={}, clasif=null, history=[], inicial="";
 const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
-function add(role,txt){const b=document.getElementById("msgs");const m=document.createElement("div");m.className="m "+(role==="user"?"u":"a");const x=document.createElement("div");x.className="bub";x.textContent=txt;m.appendChild(x);b.appendChild(m);b.scrollTop=b.scrollHeight;return x}
-function typing(){const b=document.getElementById("msgs");const m=document.createElement("div");m.className="m a";m.innerHTML='<div class="bub"><div class="typing"><i></i><i></i><i></i></div></div>';b.appendChild(m);return m}
+function add(role,txt){const b=document.getElementById("msgs");const m=document.createElement("div");m.className="m "+(role==="user"?"u":"a");const x=document.createElement("div");x.className="bub";x.textContent=txt;m.appendChild(x);b.appendChild(m);scrollDown();return x}
+function scrollDown(){const b=document.getElementById("msgs");if(!b)return;b.scrollTop=b.scrollHeight;const last=b.lastElementChild;if(last){requestAnimationFrame(()=>{b.scrollTop=b.scrollHeight;const r=document.querySelector(".inp");(r||last).scrollIntoView({behavior:"smooth",block:"end"});});}}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function typing(){const b=document.getElementById("msgs");const m=document.createElement("div");m.className="m a";m.innerHTML='<div class="bub"><div class="typing"><i></i><i></i><i></i></div></div>';b.appendChild(m);scrollDown();return m}
+
 function contexto(){
   const l=lead; return [
     `Nombre: ${l.nombre}`, `Edad: ${l.edad}`, `Previsión actual: ${l.isapre}`, `Renta imponible aprox: ${l.renta}`,
@@ -205,6 +255,7 @@ function contexto(){
     "No hay planes concretos cargados para su isapre: habla de tipos de alternativa, sin inventar nombres ni precios."
   ].filter(Boolean).join("\n");
 }
+
 async function enviar(e){
   e.preventDefault();
   const fd=new FormData(document.getElementById("f")); lead=Object.fromEntries(fd.entries());
@@ -213,32 +264,45 @@ async function enviar(e){
   document.getElementById("hero").style.display="none"; document.getElementById("res").classList.add("on"); window.scrollTo(0,0);
   const tagc={no_afiliable:"t-no",restringible:"t-res",evaluar:"t-ev",sin_impacto:"t-ok"}[clasif.nivel];
   document.getElementById("dbg").innerHTML=`<b>Panel de prueba (no lo ve el usuario final)</b><br><span class="tag ${tagc}">${clasif.nivel}</span>${clasif.hallazgos.map(h=>esc(h.nombre)).join(" · ")||"sin hallazgos"}<br>${esc(clasif.resumen)}<br><b>Acción:</b> ${clasif.nivel==="no_afiliable"?"orientación automática + derivar a Nico":"flujo normal de asignación a ejecutivo"}<br><span id="gen"></span>`;
-  document.getElementById("acts").innerHTML=`<a class="wa" target="_blank" href="https://wa.me/${WSP}?text=${encodeURIComponent("Hola Nico, soy "+lead.nombre.split(" ")[0]+". Vengo del formulario de IAsapre y quiero revisar mi plan de "+lead.isapre+".")}">💬 Hablar con Nico por WhatsApp</a><button class="sec" onclick="location.reload()">Probar otro caso</button>`;
+  const acts=document.getElementById("acts");
+  acts.innerHTML=`<a class="wa" target="_blank" href="https://wa.me/${WSP}?text=${encodeURIComponent("Hola Nico, soy "+lead.nombre.split(" ")[0]+". Vengo del formulario de IAsapre y quiero revisar mi plan de "+lead.isapre+".")}">💬 Hablar con Nico por WhatsApp</a><button class="sec" onclick="location.reload()">Probar otro caso</button>`;
+
   const t=typing(); document.getElementById("st").textContent="escribiendo…";
   if(clasif.nivel==="no_afiliable"){
     let msg=null, via="plantilla";
-    try{ msg=await llm(ORIENT_SYSTEM,[{role:"user",content:"CONTEXTO DEL LEAD\n"+contexto()+"\n\nEscribe el mensaje de WhatsApp."}]); via="claude"; }catch(err){ console.error(err); }
+    try{ msg=await llm(ORIENT_SYSTEM,[{role:"user",content:"CONTEXTO DEL LEAD\n"+contexto()+"\n\nEscribe el mensaje de WhatsApp."}],p=>{t.querySelector(".bub").textContent=p;scrollDown()}); via="claude"; }catch(err){ console.error(err); }
     if(!msg||msg.length<80){ msg=generar(lead,clasif,[]); via="plantilla"; }
-    t.querySelector(".bub").textContent=msg; inicial=msg;
+    t.querySelector(".bub").textContent=msg; inicial=msg; scrollDown();
     document.getElementById("gen").innerHTML=`<b>Mensaje generado por:</b> ${via}`;
   } else {
     const pila=lead.nombre.split(" ")[0];
     const msg = clasif.nivel==="restringible"
       ? `Hola ${pila}, soy Nico de IAsapre. Leí tu formulario. Lo que declaras normalmente se acepta en otras isapres, pero con una restricción de hasta 18 meses para esa patología (cobertura mínima 25% del plan). Eso hay que ponerlo en la balanza antes de cambiarte. Un ejecutivo te va a contactar por ${lead.contacto_pref} con la comparación completa; mientras tanto, pregúntame lo que quieras por acá.`
       : `Hola ${pila}, soy Nico de IAsapre. Leí tu formulario y ya quedó en manos de un ejecutivo para la comparación de planes${lead.clinica_interes?" pensando en "+lead.clinica_interes:""}. Te contactan por ${lead.contacto_pref}. Si tienes dudas antes, pregúntame por acá.`;
-    t.querySelector(".bub").textContent=msg; inicial=msg;
+    t.querySelector(".bub").textContent=msg; inicial=msg; scrollDown();
   }
   document.getElementById("st").textContent="en línea · asesor de IAsapre";
   history=[{role:"user",content:"[Datos del formulario]\n"+contexto()},{role:"assistant",content:inicial}];
 }
+
 async function send(){
   const ta=document.getElementById("q"); const q=ta.value.trim(); if(!q) return; ta.value="";
   add("user",q); history.push({role:"user",content:q});
-  const t=typing(); document.getElementById("send").disabled=true;
-  const sys = "# CONTEXTO DE ESTA CONVERSACIÓN\nEres Nico de IAsapre y ya le enviaste a esta persona un primer mensaje (está en el historial). Sigue la conversación con el mismo tono cercano y breve (máx 150 palabras), usando sus datos. Si pide hablar con alguien o el caso requiere revisar documentos, invítala a escribir al WhatsApp " + WSP_HUMANO + ". No uses la etiqueta [[CONTACTO]].";
-  try{ let text=await llm(sys,history); text=text.replace(/\[\[CONTACTO\]\]/g,"").trim(); t.querySelector(".bub").textContent=text; history.push({role:"assistant",content:text}); }
-  catch(e){ t.querySelector(".bub").textContent="No pude conectarme al motor. Escríbeme directo al WhatsApp "+WSP_HUMANO+"."; history.pop(); }
-  document.getElementById("send").disabled=false;
+  const t=typing(); const btn=document.getElementById("send"); btn.disabled=true;
+  const ctx={nombre:lead.nombre, isapre:lead.isapre, clinica:lead.clinica_interes, cargas:lead.cargas, nivel:clasif&&clasif.nivel};
+  const off=responderOffline(q,ctx);
+  let text=null, via="base";
+  if(off && off.score>=2.5){                      // respuesta segura desde la base: no usa el motor
+    await sleep(600+Math.min(1600,off.texto.length*3));
+    text=off.texto;
+  } else {
+    const sys = KB + "\n\n# CONTEXTO DE ESTA CONVERSACIÓN\nEres Nico de IAsapre y ya le enviaste a esta persona un primer mensaje (está en el historial). Sigue la conversación con el mismo tono cercano y breve (máx 150 palabras), usando sus datos. Si pide hablar con alguien o el caso requiere revisar documentos, invítala a escribir al WhatsApp " + WSP_HUMANO + ". No uses la etiqueta [[CONTACTO]].";
+    try{ text=await llm(sys,history,p=>{t.querySelector(".bub").textContent=p.replace(/\[\[CONTACTO\]\]/g,"");scrollDown()}); text=text.replace(/\[\[CONTACTO\]\]/g,"").trim(); via="motor"; }
+    catch(e){ console.warn("motor no disponible, uso base offline", e); await sleep(700); text = off ? off.texto : OFFLINE_FALLBACK(ctx); via = off ? "base" : "fallback"; }
+  }
+  t.querySelector(".bub").textContent=text; history.push({role:"assistant",content:text}); scrollDown();
+  const g=document.getElementById("gen"); if(g) g.innerHTML=(g.dataset.first||g.innerHTML)+`<br><b>Última respuesta:</b> ${via}${off?" ("+off.id+", "+off.score.toFixed(1)+")":""}`; if(g&&!g.dataset.first) g.dataset.first=g.innerHTML.split("<br><b>Última")[0];
+  btn.disabled=false; ta.focus();
 }
 document.getElementById("q").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}});
 </script></body></html>
