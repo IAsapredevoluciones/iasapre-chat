@@ -287,7 +287,7 @@ function reply(texto){
  if(S.need==="renta"){const v=num(texto);if(v){p.renta=v;return out(D.cuanto_pago(p),"cuanto_pago",1);}}
  if(S.need==="isapre"){const k=isapreKey(texto);if(k){p.isapre=k;p.enIsapre=k!=="fonasa"&&k!=="ninguna";return out(p.enIsapre?D.beneficios(p):D.fonasa(p),"dato_isapre",1);}}
  const cl=clinicaDe(texto); if(cl&&!/urgencia|cheque|hospitaliz|cuenta|licencia|huella/.test(q)){p.clinica=cl;return out(D.mejor_clinica(p),"mejor_clinica",2);}
- if(C.NOLLAMEN.test(q)){S.miss=0;const f=p.enIsapre?D.bajar_costo:D.fonasa;const r=f(p,texto);return out({t:"Tranquilo, nadie te va a llamar: lo resolvemos por acá. "+r.t,chips:r.chips.filter(c=>c!=="Hablar con Nico")},"sin_llamadas",1);}
+ if(C.NOLLAMEN.test(q)){S.miss=0;const f=p.enIsapre?D.bajar_costo:D.fonasa;const r=f(p,texto);return out({t:"Sin problema, nadie te va a llamar: lo resolvemos por acá. "+r.t,chips:r.chips.filter(c=>c!=="Hablar con Nico")},"sin_llamadas",1);}
  // 2) sí / no contextual
  if(SI.test(q)&&q.split(" ").length<=4&&S.pending){const pd=S.pending;const map={objetivo:[p.enIsapre?D.bajar_costo:D.fonasa,p.enIsapre?"bajar_costo":"fonasa"],pasos_plan:[D.pasos_plan,"pasos_plan"],complementario:[D.complementario_fonasa,"complementario_fonasa"],caec:[D.deducible,"deducible"]};const f=map[pd];if(f)return out(f[0](p),f[1],1);}
  if(SI.test(q)&&q.split(" ").length<=4){S.miss=0;S.last="ack";return {t:"¡Buena! ¿Con qué seguimos? Elige una opción o escríbeme tu duda con tus palabras.",chips:sugerir(p),id:"ack",conf:1};}
