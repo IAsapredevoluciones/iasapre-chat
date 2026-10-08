@@ -31,7 +31,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--az);box-
 .av{width:40px;height:40px;border-radius:50%;background:var(--tq);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--gd)}
 .ch b{display:block;font-size:15px}.ch small{opacity:.9;font-size:12px}
 .ch a{margin-left:auto;background:#25d366;color:#fff;text-decoration:none;font-weight:800;font-size:12px;padding:8px 12px;border-radius:999px}
-#msgs{flex:1;padding:16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;background:var(--g2);scroll-behavior:smooth}
+#msgs{flex:1;padding:16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;background:var(--g2)}
 .m{display:flex}.m.u{justify-content:flex-end}
 .bub{max-width:86%;padding:11px 14px;border-radius:14px;font-size:14.5px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word}
 .m.a .bub{background:#fff;border:1px solid var(--g1);border-bottom-left-radius:4px}
@@ -91,7 +91,7 @@ footer{text-align:center;font-size:12px;color:#9ca3af;padding:24px 20px}
 const WSP="56985380357";const NETLIFY=/netlify\.app$|iasapre\.cl$/.test(location.hostname);
 const $=id=>document.getElementById(id);const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let lead={},busy=false,log=[];
-function scrollDown(){const b=$("msgs");requestAnimationFrame(()=>{b.scrollTop=b.scrollHeight;$("q").scrollIntoView({block:"nearest"});});}
+function scrollDown(){const b=$("msgs");const go=()=>{b.scrollTop=b.scrollHeight;};go();setTimeout(go,60);setTimeout(go,300);try{requestAnimationFrame(go);}catch(e){}if(window.innerWidth<820){try{$("q").scrollIntoView({block:"nearest"});}catch(e){}}}
 function bubble(role,txt){const m=document.createElement("div");m.className="m "+(role==="u"?"u":"a");const x=document.createElement("div");x.className="bub";x.textContent=txt;m.appendChild(x);$("msgs").appendChild(m);scrollDown();return m;}
 function typing(){const m=document.createElement("div");m.className="m a";m.innerHTML='<div class="bub"><div class="typing"><i></i><i></i><i></i></div></div>';$("msgs").appendChild(m);scrollDown();return m;}
 function clearChips(){document.querySelectorAll("#msgs .chips").forEach(c=>c.remove());}
