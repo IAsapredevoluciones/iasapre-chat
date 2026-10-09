@@ -342,7 +342,7 @@ function reply(texto){
  const out=(r,id,conf)=>{S.last=id;S.topics.add(id);if(r.need)S.need=r.need;else S.need=null;S.miss=0;
   let t=r.t;const a=ACK[id];if(a&&q.split(" ").length>3&&!pre)t=pick(a,S.turn)+" "+t;if(pre)t=pre+" "+t;
   let ch=r.chips||[];
-  if(p.afiliable&&!S.comparacion&&!/comparar|que_mirar|cambio_isapre|gracias|escalar|saludo|ack|no$/.test(id)&&S.turn%2===0&&!/compar/i.test(t)){t+=`\n\n👉 Con tu perfil, lo que más te puede servir es comparar tu plan con el de otras isapres: muchas veces hay uno igual o mejor por menos. ¿Te armo la comparación?`;S.pending="comparar";ch=["Sí, quiero la comparación"].concat(ch.filter(c=>!/compar/i.test(c))).slice(0,4);}
+  if(p.afiliable&&!S.comparacion&&!/comparar|que_mirar|cambio_isapre|gracias|escalar|saludo|ack|no$|menu|bot|reparar|fuera_tema|empatia|desambiguar/.test(id)&&S.turn%2===0&&!/compar/i.test(t)){t+=`\n\n👉 Con tu perfil, lo que más te puede servir es comparar tu plan con el de otras isapres: muchas veces hay uno igual o mejor por menos. ¿Te armo la comparación?`;S.pending="comparar";ch=["Sí, quiero la comparación"].concat(ch.filter(c=>!/compar/i.test(c))).slice(0,4);}
   return {t:guard(t),chips:ch,escalar:!!r.escalar,id,conf};};
  capturar(p,texto);
  if(BOT.test(q))return out({t:`Te soy honesto: soy el asistente virtual de IAsapre. Respondo al tiro con la información de tu caso y todo lo que te digo está basado en la normativa vigente. Si en algún momento prefieres que una persona del equipo lo revise, Nico te atiende por WhatsApp al ${WSP_H}. ¿En qué te ayudo?`,chips:sugerir(p)},"bot",1);
