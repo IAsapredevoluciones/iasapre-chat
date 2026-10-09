@@ -44,6 +44,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--az);box-
 .chip.wa{border-color:#25d366;color:#128c4a}
 .inp{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--g1);background:#fff}
 .inp textarea{flex:1;resize:none;height:44px;border-radius:10px}
+.inp #mic{background:var(--g1);color:var(--gd);font-size:18px;padding:0 12px}.inp #mic.on{background:#ef4444;color:#fff;animation:pulse 1s infinite}@keyframes pulse{50%{opacity:.6}}
 .inp button{background:var(--az);color:#fff;border:none;border-radius:10px;padding:0 16px;font-weight:800;cursor:pointer}
 .dbg{margin-top:12px;background:#fff;border:1px dashed #cbd5e1;border-radius:12px;padding:10px 14px;font-size:12px;color:#475569}
 .tag{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;margin-right:6px}
@@ -80,7 +81,7 @@ footer{text-align:center;font-size:12px;color:#9ca3af;padding:24px 20px}
   <div class="chat">
     <div class="ch"><div class="av">IA</div><div><b>Asistente IAsapre</b><small id="st">leyendo tu formulario…</small></div><a id="wa" target="_blank" href="#">WhatsApp</a></div>
     <div id="msgs"></div>
-    <div class="inp"><textarea id="q" placeholder="Escribe tu duda como te salga…"></textarea><button onclick="send()" id="send">➤</button></div>
+    <div class="inp"><textarea id="q" placeholder="Escribe tu duda como te salga…"></textarea><button id="mic" type="button" title="Háblame" aria-label="Hablar">🎤</button><button onclick="send()" id="send">➤</button></div>
   </div>
   <div class="dbg" id="dbg"></div>
 </section>
@@ -115,7 +116,18 @@ async function send(){if(busy)return;const ta=$("q");const q=ta.value.trim();if(
  let r=NicoBot.reply(q);
  if(r.id==="no_entendi"){const ext=await motorExterno(q);if(ext)r={t:NicoBot.guard(ext),chips:r.chips,id:"motor"};}
  await decir(r.t,r.chips,r.escalar);
- const g=$("gen");if(g)g.innerHTML=`<b>Última respuesta:</b> ${r.id}${r.conf?" ("+Number(r.conf).toFixed(1)+")":""}`;
+ const g=$("gen");const L=NicoBot.lead&&NicoBot.lead();if(g)g.innerHTML=`<b>Última respuesta:</b> ${r.id}${r.conf?" ("+Number(r.conf).toFixed(1)+")":""}${L?` · <b>Lead:</b> ${L.tipo} · puntaje ${L.score}${L.comparacion?" · <b>comparación pedida ✅</b>":""}`:""}`;
  $("st").textContent="en línea · asesor de IAsapre";busy=false;$("send").disabled=false;ta.focus();}
+/* ---- voz: dictado con Web Speech API (Chrome, Edge, Android, Safari iOS 14.5+) ---- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null,escuchando=false,enviado=false;
+function tipVoz(msg){bubble("a",msg||"Tu navegador no me deja escucharte directo 🙈 Pero puedes tocar el micrófono de tu teclado (dictado) y hablarme igual: entiendo lo que me dices, aunque sea largo o desordenado.");}
+$("mic").onclick=()=>{if(busy)return;if(!SR){tipVoz();return;}if(escuchando){rec.stop();return;}
+ rec=new SR();rec.lang="es-CL";rec.interimResults=true;rec.continuous=false;rec.maxAlternatives=1;enviado=false;
+ rec.onstart=()=>{escuchando=true;$("mic").classList.add("on");$("q").placeholder="Te escucho… cuéntame con calma";};
+ rec.onresult=(e)=>{let txt="";for(let i=0;i<e.results.length;i++)txt+=e.results[i][0].transcript;$("q").value=txt;
+  if(e.results[e.results.length-1].isFinal&&!enviado&&txt.trim()){enviado=true;send();}};
+ rec.onerror=(e)=>{if(e.error==="not-allowed"||e.error==="service-not-allowed")tipVoz("Necesito permiso para usar el micrófono. Si prefieres, usa el dictado de tu teclado y te entiendo igual.");else if(e.error==="no-speech")tipVoz("No te escuché 🙂 Toca el micrófono y vuelve a intentarlo, o escríbeme.");};
+ rec.onend=()=>{escuchando=false;$("mic").classList.remove("on");$("q").placeholder="Escribe tu duda como te salga…";};
+ try{rec.start();}catch(err){tipVoz();}};
 $("q").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}});
 </script></body></html>
