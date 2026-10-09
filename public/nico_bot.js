@@ -24,7 +24,7 @@ const ISAPRES={
  nuevamasvida:{n:"Nueva Masvida",g:"",red:["sus clínicas en convenio"],extra:"los beneficios de su club",dental:"su red dental en convenio",web:"nuevamasvida.cl"},
  esencial:{n:"Esencial",g:"",red:["sus clínicas en convenio"],extra:"los beneficios de su app",dental:"su red dental en convenio",web:"somosesencial.cl"},
 };
-function isapreKey(s){const x=norm(s).replace(/\s/g,"");if(!x)return null;
+function isapreKey(s){let x=norm(s).replace(/\s/g,"");if(!x)return null;x=x.replace(/b[a]?n?m?e?dica|banedica|bnmedica/,"banmedica").replace(/c[o]?lmena|clmena/,"colmena").replace(/cruzbl?nca|cruzblanc/,"cruzblanca").replace(/c[o]?nsalud|consalu\b/,"consalud");
  if(/fonasa/.test(x))return "fonasa"; if(/banmed/.test(x))return "banmedica"; if(/vida ?3|vidatres/.test(x))return "vidatres"; if(/consalud/.test(x))return "consalud";
  if(/cruzblanca|bupa/.test(x))return "cruzblanca"; if(/colmena/.test(x))return "colmena"; if(/masvida/.test(x))return "nuevamasvida"; if(/esencial/.test(x))return "esencial";
  if(/otra|sin|ninguna|no tengo/.test(norm(s)))return "ninguna"; return null;}
@@ -55,6 +55,32 @@ const CONDS={
  neuro_grave:{n:"una enfermedad neurológica",ges:"El ACV isquémico, la epilepsia, el Parkinson y la esclerosis múltiple recurrente remitente están en el GES; y ciertos tratamientos de esclerosis múltiple van por Ley Ricarte Soto al 100%.",caec:true},
  autoinmune_activa:{n:"una enfermedad autoinmune",ges:"La artritis reumatoide y el lupus están en el GES, y las terapias biológicas de artritis reumatoide refractaria y esclerosis múltiple pueden ir por Ley Ricarte Soto al 100%.",caec:true},
 };
+
+const PROS={
+ banmedica:{pro:["la red propia más grande: Santa María, Dávila, Dávila Vespucio, Ciudad del Mar y Biobío, más los centros Vida Integra","Salud Extendida: sumar hasta 2 familiares que están en Fonasa a su red pagando una prima aparte","convenios destacados en clínicas como Alemana, Las Condes, UC, Indisa y Meds"],ojo:["fuera de su red, los planes preferentes cubren menos","planes con 100% pueden tener topes bajos por prestación"]},
+ vidatres:{pro:["comparte grupo y red con Banmédica (Santa María, Dávila)","planes orientados a un segmento de mayor renta"],ojo:["muchos planes se parecen a los de Banmédica: la diferencia suele estar en precio y segmento"]},
+ consalud:{pro:["cobertura preferente en RedSalud, con clínicas en muchas regiones (Elqui, Iquique, Rancagua, Temuco, Magallanes, Santiago)","precios competitivos en planes preferentes","fuerte en Coquimbo, Maule, O'Higgins, Biobío, Araucanía, Los Lagos y Magallanes"],ojo:["en Santiago compite con clínicas de mayor complejidad","planes con topes bajos fuera de RedSalud"]},
+ cruzblanca:{pro:["cobertura preferente en Bupa Santiago, Bupa Reñaca, Bupa Antofagasta e IntegraMédica","Bupa Bienestar: telemedicina 24/7 y apoyo psicológico","fuerte en varias regiones del norte y del sur"],ojo:["en clínicas de otros grupos (Santa María, Alemana) sus preferentes cubren menos","compara topes de honorarios médicos, no solo el porcentaje"]},
+ colmena:{pro:["no es dueña de clínicas: libertad para elegir y convenios destacados en unas 41 clínicas de 12 regiones","buena reputación de servicio","seguros complementarios (catastrófico, oncológico, dental) contratables aparte"],ojo:["un 100% en una clínica puntual puede salir más caro que en la isapre dueña de esa clínica","en libre elección la cobertura se calcula sobre arancel"]},
+ nuevamasvida:{pro:["isapre abierta con planes en convenio con clínicas regionales y de Santiago"],ojo:["el detalle de su red conviene revisarlo plan por plan"]},
+ esencial:{pro:["isapre abierta más reciente, con planes en convenio con prestadores"],ojo:["el detalle de su red conviene revisarlo plan por plan"]}};
+const REGIONES=[[/arica/,"Arica y Parinacota",["Banmédica","Colmena","Cruz Blanca"]],[/iquique|tarapaca|alto hospicio/,"Tarapacá",["Colmena","Cruz Blanca"]],[/antofagasta|calama/,"Antofagasta",["Colmena","Cruz Blanca"]],[/copiapo|atacama|vallenar/,"Atacama",["Consalud","Colmena"]],[/la serena|coquimbo|ovalle/,"Coquimbo",["Consalud","Colmena","Cruz Blanca"]],[/valparaiso|vina|quilpue|villa alemana|san antonio|quillota|los andes/,"Valparaíso",["Colmena","Cruz Blanca","Banmédica"]],[/rancagua|o.?higgins|san fernando|rengo/,"O'Higgins",["Consalud","Colmena","Cruz Blanca"]],[/talca|curico|maule|linares/,"Maule",["Consalud","Colmena"]],[/chillan|nuble/,"Ñuble",["Colmena","Cruz Blanca"]],[/concepcion|talcahuano|los angeles|biobio|san pedro de la paz/,"Biobío",["Banmédica","Consalud"]],[/temuco|araucania|villarrica|pucon|angol/,"La Araucanía",["Consalud","Colmena","Cruz Blanca"]],[/valdivia|los rios/,"Los Ríos",["Banmédica","Colmena","Cruz Blanca"]],[/puerto montt|osorno|puerto varas|chiloe|castro|los lagos/,"Los Lagos",["Consalud","Banmédica"]],[/punta arenas|magallanes/,"Magallanes",["Consalud","Banmédica","Cruz Blanca"]],[/coyhaique|aysen/,"Aysén",[]]];
+const CIUD=["arica","iquique","antofagasta","calama","copiapo","serena","coquimbo","valparaiso","vina","rancagua","talca","curico","chillan","concepcion","temuco","valdivia","osorno","puerto montt","punta arenas","coyhaique","los angeles","talcahuano","ovalle","quilpue"];
+function regionDe(s){let x=norm(s);for(const [re,n,l] of REGIONES)if(re.test(x))return {n,l};
+ const toks=x.split(" ");for(const c of CIUD){if(c.includes(" "))continue;for(const tk of toks)if(tk.length>=5&&lev(tk,c)<=1){x=x+" "+c;for(const [re,n,l] of REGIONES)if(re.test(x))return {n,l};}}return null;}
+const EXT={
+ complementario_det:"Así funciona un seguro complementario de salud: opera después de tu isapre o Fonasa y te reembolsa un % de tu copago (típicamente 50% a 80%).\n\nLo que hay que mirar: 1) Deducible: un monto anual que pagas tú antes de que empiece a reembolsar (suele rondar 0,5 a 1 UF por persona). 2) Carencias: periodos iniciales sin cobertura, por ejemplo 60 días en lo ambulatorio y hasta 1 año en lo hospitalario en algunos seguros. 3) BMI (bonificación mínima): si tu isapre cubrió menos que ese mínimo, el seguro calcula como si hubiera cubierto el mínimo, así que con un plan base malo el seguro rinde menos. 4) Topes anuales por persona (por ejemplo 250 UF). 5) Preexistencias: muchos las excluyen o les ponen carencia de 6 a 24 meses; los colectivos de empresa suelen ser más flexibles.\n\nEn Fonasa lo pueden contratar los tramos B, C y D. Para reembolsar: primero bono de isapre o Fonasa, guarda boleta y bono, y presenta en la app del seguro dentro del plazo.",
+ catastrofico:"Un seguro catastrófico (o oncológico) es distinto al complementario: no reembolsa la consulta del día a día, sino que te protege de cuentas muy grandes, con un deducible alto por evento (puede ser del orden de decenas de UF) y topes altos. Sirve como capa extra sobre la CAEC si estás en isapre, o sobre Fonasa. Ojo: casi todos excluyen las enfermedades que ya tenías al contratar, así que pídelo por escrito antes de pagar.",
+ topes_det:"Los topes vienen de varias formas en la carátula: 1) por prestación (lo máximo que paga por una consulta, un día cama, etc.), 2) en \"veces arancel\" (por ejemplo 2,5 VA: 2,5 veces el valor de referencia de tu isapre), 3) por evento o anual por beneficiario. La isapre siempre paga el MENOR entre el % y el tope. Por eso un plan \"100%\" con topes bajos puede dejarte copagos grandes en pabellón u honorarios, y un plan \"90% sin tope\" en tu clínica puede ser mejor. Al comparar, mira el tope del día cama, del pabellón y de los honorarios médicos en la clínica que usas.",
+ ricarte_det:"La Ley Ricarte Soto cubre hoy 27 problemas de salud de alto costo, para todas las personas en Fonasa, isapre, Capredena o Dipreca. Cubre el 100% de los medicamentos, dispositivos o alimentos garantizados para cada problema (y en algunos casos el examen de confirmación), sin copago. Ejemplos: cáncer de mama HER2+, artritis reumatoide refractaria, esclerosis múltiple, enfermedad de Crohn grave, ELA, Huntington, Gaucher, Fabry y nutrición enteral domiciliaria. No la activas tú: tu médico especialista llena el formulario de sospecha en la plataforma y un comité confirma. Consultas, cirugías y hospitalizaciones siguen por tu isapre o Fonasa. Desde 2021 no se han sumado enfermedades nuevas: el decreto de actualización está detenido.",
+ ges_det:"El GES cubre 90 problemas de salud con 4 garantías por ley: acceso, oportunidad (plazos máximos), calidad y protección financiera. En isapre pagas como máximo 20% de un arancel GES (que es bajo), con un tope anual de copago; en Fonasa, 0% en tramos A y B, 10% en C y 20% en D. Para usarlo: tu médico te entrega la notificación GES, la presentas a tu isapre (sucursal virtual o app) o en tu consultorio, y te designan un prestador de la red GES. Si te atiendes fuera de esa red, pierdes la garantía y opera tu plan normal. Si no cumplen el plazo, avisa a tu isapre y debe darte un segundo prestador.",
+ caec_act:"Cómo activar la CAEC, paso a paso: 1) Apenas sepas que viene una hospitalización o tratamiento caro, pide a tu isapre el ingreso a CAEC (sucursal virtual o ejecutivo) con el informe médico. 2) La isapre te designa un prestador de su red CAEC; ahí, sobre el deducible, pagas 0%. 3) Si entraste por urgencia a otra clínica, pide el traslado a la red CAEC apenas te estabilicen. 4) Puedes pedir un préstamo para pagar el deducible en cuotas. Lo que no cubre: prestaciones excluidas de tu plan, atenciones fuera de la red designada y lo que ya cubre el GES (que tiene su propio tope).",
+ libre_vs_pref:"Con cualquier isapre puedes atenderte en cualquier clínica: lo que cambia es cuánto te cubren. En el prestador preferente de tu plan tienes el mejor % y los mejores topes; fuera de él, la cobertura de libre elección (normalmente menor). Por eso el plan correcto parte por la clínica que de verdad usas, no por el precio.",
+ urgencia_int:"En una urgencia con riesgo vital, te deben atender en cualquier clínica y no pueden pedirte cheque ni pagaré (Ley de Urgencia); la isapre paga y te da un préstamo por el copago. Además, muchos planes tienen \"urgencia integral\": una clínica de la red donde la urgencia tiene mejor cobertura aunque no sea riesgo vital. Revisa en tu plan cuál es antes de necesitarla.",
+ hospital_publico:"Si estás en isapre, también puedes atenderte en hospitales públicos que vendan prestaciones a pacientes privados (sobre todo pensionados o unidades privadas): la isapre bonifica según tu plan, normalmente en libre elección. Las urgencias de hospitales públicos atienden a todos.",
+ prima_ges:"El precio de tu plan en isapre tiene tres partes: el plan complementario (precio base × tus factores), el precio GES (lo fija cada isapre por beneficiario, igual para todos sus afiliados) y, en algunos casos, el precio de la CAEC. Cuando sube el GES por un nuevo decreto, sube para todos los afiliados de esa isapre.",
+};
+const TXT=(k)=>(p)=>{S.pending=null;return {t:EXT[k],chips:sugerir(p)};};
 
 /* ---------- clasificación (corregida: salud mental no se declara) ---------- */
 const REGLAS=[
@@ -102,9 +128,16 @@ function guard(txt){if(!txt)return txt;let hit=false;
 
 /* ---------- perfil y cálculos ---------- */
 let S=null; // estado de la conversación
-function num(s){const x=String(s||"").toLowerCase().replace(/\s/g,"");let m=x.match(/(\d+[.,]?\d*)\s*(mm|millon|millones|palos?|m\b)/);if(m)return parseFloat(m[1].replace(",","."))*1e6;
- m=x.match(/(\d+)\s*(lucas|mil|k)\b/);if(m)return parseInt(m[1])*1000; const d=x.replace(/[^\d]/g,"");return d?parseInt(d):null;}
-function montos(raw){const x=String(raw||"").toLowerCase();const R=/(\d[\d.,]*\s*(mil|lucas|palos?|millones?|mm|k)?)/;
+const NUMW={un:1,uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12,quince:15,veinte:20,treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,noventa:90,cien:100,ciento:100,doscientos:200,doscientas:200,trescientos:300,trescientas:300,cuatrocientos:400,cuatrocientas:400,quinientos:500,quinientas:500,seiscientos:600,seiscientas:600,setecientos:700,setecientas:700,ochocientos:800,ochocientas:800,novecientos:900,novecientas:900};
+function hablado(x){x=" "+String(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")+" ";
+ x=x.replace(/ (un|uno) millon y medio /g," 1500000 ").replace(/ (\w+) millones y medio /g,(m,w)=>NUMW[w]?" "+(NUMW[w]*1e6+5e5)+" ":m).replace(/ medio millon /g," 500000 ");
+ const NW=Object.keys(NUMW).sort((a,b)=>b.length-a.length).join("|");
+ x=x.replace(new RegExp(" ("+NW+") (millon|millones|palos?) ((?:(?:"+NW+")(?: y | ))+)(mil |lucas )?","g"),(m,w,u,ws)=>{const r=ws.trim().split(/ y | /).reduce((a,v)=>a+(NUMW[v]||0),0);return NUMW[w]?" "+(NUMW[w]*1e6+r*1000)+" ":m;});
+ x=x.replace(new RegExp(" ((?:(?:"+NW+")(?: y | ))+)(mil|lucas) ","g"),(m,ws,u)=>{const n=ws.trim().split(/ y | /).reduce((a,w)=>a+(NUMW[w]||0),0);return n?" "+n*1000+" ":m;});
+ x=x.replace(/ (\w+) (millon|millones|palos?) /g,(m,w,u)=>NUMW[w]?" "+NUMW[w]*1e6+" ":m);return x.trim();}
+function num(s){s=hablado(s);const x=String(s||"").toLowerCase().replace(/\s/g,"");let m=x.match(/(\d+[.,]?\d*)\s*(mm|millon|millones|palos?|m\b)/);if(m)return parseFloat(m[1].replace(",","."))*1e6;
+ m=x.match(/(\d+)\s*(lucas|mil|k)\b/);if(m){const v=parseInt(m[1]);return v>=1000?v:v*1000;} const d=x.replace(/[^\d]/g,"");return d?parseInt(d):null;}
+function montos(raw){const x=hablado(raw);const R=/(\d[\d.,]*\s*(mil|lucas|palos?|millones?|mm|k)?)/;
  const g=x.match(new RegExp("(gano|sueldo|renta|liquido|imponible|me pagan)[^\\d]{0,20}"+R.source));const c=x.match(new RegExp("(pago|cobra|cobran|cuesta|plan de|sale|descuentan)[^\\d]{0,20}"+R.source));
  return {renta:g?num(g[2]):null,pago:c?num(c[2]):null};}
 function cargasN(s){const x=norm(s);if(!x||/^no|ninguna|0/.test(x))return 0;const m=x.match(/\d+/);return m?parseInt(m[0]):1;}
@@ -158,14 +191,14 @@ function start(lead){
   const g=bloqueCond(p); if(g) t+="\n\n"+g;
   t+=`\n\n¿Qué te importa más ahora: bajar lo que pagas, mejorar la cobertura en tu clínica, o entender qué te cubre para tu tratamiento?`;
   S.pending="objetivo";
-  return {t,chips:["Bajar lo que pago","Mejor cobertura en mi clínica","Qué me cubre para mi tratamiento","¿Y si igual intento otra isapre?","Hablar con Nico"]};
+  return {t,chips:["Bajar lo que pago","Mejor cobertura en mi clínica","Qué me cubre para mi tratamiento","¿Y si igual intento otra isapre?","¿Necesito un ejecutivo?"]};
  }
  t+=`Para tu caso, lo más sólido es Fonasa: no pregunta preexistencias, no te restringe nada y tu 7% ${p.renta?`(aprox. ${fmt(siete(p))})`:""} te da acceso a la red pública con copago cero y a clínicas privadas con bonos de libre elección.`;
  const tr=tramo(p); if(tr) t+=` Con tu renta${p.cargas>=3?" y tus cargas":""} quedarías en el tramo ${tr}, así que el GES te sale con ${gesCopago(tr)} de copago.`;
  const g=bloqueCond(p); if(g) t+="\n\n"+g;
  t+=`\n\nSi quieres más protección en clínicas, se puede sumar un seguro complementario (ojo: muchos individuales excluyen preexistencias; los colectivos de empresa suelen ser más flexibles). ¿Te explico cómo armarlo?`;
  S.pending="complementario";
- return {t,chips:["Sí, cómo armo Fonasa + seguro","¿Cuánto pago en Fonasa?","Qué me cubre el GES","Atenderme en mi clínica","Hablar con Nico"]};
+ return {t,chips:["Sí, cómo armo Fonasa + seguro","¿Cuánto pago en Fonasa?","Qué me cubre el GES","¿Necesito un ejecutivo?"]};
 }
 function startOtro(p,n){
  const c=p.clasif; let t;
@@ -232,7 +265,21 @@ const D={
  que_mirar(p){S.pending="comparar";return {t:`Al comparar planes, mira 5 cosas y en este orden:\n1) La clínica: que sea prestador preferente en la que realmente usas${p.clinica?` (${p.clinica.n})`:""}.\n2) Hospitalario: % y TOPE de día cama, pabellón y honorarios ahí. "Sin tope" es buena señal.\n3) Precio final con GES incluido, frente a tu 7%${siete(p)?` (~${fmt(siete(p))})`:""}.\n4) Ambulatorio: consultas y exámenes, que es lo que más usas en el año.\n5) Restricciones: coberturas restringidas y, si declaras algo, cuánto tiempo te lo restringen.\n\n¿Quieres que te armemos la comparación con esos criterios?`,chips:["Sí, quiero la comparación","¿Cómo es el cambio de isapre?"]};},
  cambio_isapre(p){S.pending="comparar";const r=p.clasif.hallazgos.filter(h=>h.nivel==="restringible").map(h=>h.nombre);
   return {t:`Cambiarte de isapre es más simple de lo que parece:\n1) Requisitos: 12 meses en el sistema isapre (no en la misma) y sin deudas con tu isapre actual.\n2) Llenas la Declaración de Salud de la nueva isapre (para ti y tus cargas)${r.length?`; con ${r.join(" y ")} pueden restringir esa patología hasta 18 meses`:""}. La salud mental no se declara.\n3) Firmas el contrato y la nueva isapre hace el traspaso; tu plan nuevo rige desde el 1° del mes siguiente. Tienes 10 días hábiles para retractarte.\n4) Nunca renuncies a tu isapre actual antes de tener la aceptación de la nueva.\n\nNosotros te acompañamos en todo el trámite sin costo. ¿Te armamos la comparación para elegir?`,chips:["Sí, quiero la comparación","¿Qué miro al comparar?"]};},
- escalar(p){S.pending=null;return {t:`Claro. Escríbele a Nico directo al WhatsApp ${WSP_H}: con tu carátula te dice en la misma conversación qué plan te conviene. Es gratis. Si prefieres, usa el botón verde de arriba y el mensaje va con tus datos.`,chips:[],escalar:true};},
+ isapre_info(p,q){const k=isapreKey(q)||p.isapre;const I=ISAPRES[k],P=PROS[k];if(!I||!P)return D.comparar(p);
+  S.pending=p.afiliable?"comparar":null;
+  let t=`${I.n}${I.g?` (${I.g})`:""}: lo que más destaca es ${P.pro.join("; ")}.\n\nDónde tener ojo: ${P.ojo.join("; ")}. Además de su plan tiene ${I.extra}; en dental, ${I.dental}.`;
+  if(p.afiliable)t+=`\n\nIgual, la mejor isapre depende de tu clínica, tu renta y tus cargas. ¿Te armamos la comparación con ${I.n} y las demás?`;
+  else if(k!==p.isapre)t+=`\n\nEn tu caso, con ${p.cond?CONDS[p.cond.id].n:"tu condición"}, ${I.n} hoy no te aceptaría como afiliación nueva; tu mejor jugada sigue siendo dentro de ${isapreN(p)}.`;
+  return {t,chips:p.afiliable?["Sí, quiero la comparación","¿Qué miro al comparar?"]:sugerir(p)};},
+ region_info(p,q){const r=regionDe(q)||regionDe(p.comuna+" "+p.region);if(!r||!r.l.length)return D.comparar(p);S.pending=p.afiliable?"comparar":null;
+  return {t:`En ${r.n}, según nuestra base de convenios, las isapres más fuertes hoy son ${r.l.join(", ")}. Igual lo que manda es la clínica que vas a usar: dime cuál es y te digo cómo cubre cada una ahí.${p.afiliable?" ¿O te armamos directamente la comparación?":""}`,chips:p.afiliable?["Sí, quiero la comparación","¿Qué miro al comparar?"]:sugerir(p)};},
+ sin_ejecutivo(p){S.pending="familia";
+  return {t:`Te lo explico con honestidad: lo que hace un ejecutivo de IAsapre es comparar planes de otras isapres para que te cambies. Con ${p.cond?CONDS[p.cond.id].n:"tu condición"}, esas isapres hoy no te aceptarían, así que no podría ofrecerte nada concreto que no puedas hacer tú en 10 minutos:\n1) Pedir a ${isapreN(p)} sus planes vigentes y cambiarte de plan (sin nueva Declaración de Salud).\n2) Tener activados el GES y la CAEC para tu diagnóstico.\n3) Si te suben el plan, reclamar el alza como cautivo.\n\nDonde sí te podemos ayudar: si alguien de tu familia trabaja y cotiza por su cuenta (tu pareja, un hijo), esa persona sí puede comparar y cambiarse. ¿Hay alguien así?`,chips:["Sí, mi pareja o un hijo","No, solo yo","Igual quiero hablar con Nico"]};},
+ familia_si(p){S.pending="comparar_si";
+  return {t:`¡Buenísimo! Esa persona, si no tiene enfermedades que declarar, puede elegir entre los planes de todas las isapres. Si me confirmas, dejamos pedida una comparación para ella: un ejecutivo te escribe por ${p.contacto||"WhatsApp"} y la arma con su clínica, renta y cargas. ¿La pedimos?`,chips:["Sí, quiero la comparación","Más tarde"]};},
+ familia_no(p){S.pending=null;return {t:`Perfecto. Entonces con los 3 pasos que te di quedas cubierto, y no necesitas esperar a nadie. Si en el futuro cambia algo (por ejemplo, pasan 5 años desde el fin de un tratamiento de cáncer, o se suma alguien a tu familia que cotice por su cuenta), vuelve y te ayudamos a comparar. ¿Te queda alguna duda?`,chips:sugerir(p)};},
+ escalar(p){if(!p.afiliable&&!S.explicoSinEjec){S.explicoSinEjec=true;const r=D.sin_ejecutivo(p);r.t=r.t.replace("Te lo explico con honestidad:","Antes de pasarte con Nico, te cuento con honestidad para que no pierdas tiempo:");r.t+=`\n\nSi igual prefieres hablar con él, escríbele al WhatsApp ${WSP_H}.`;return r;}
+  S.pending=null;return {t:`Claro. Escríbele a Nico directo al WhatsApp ${WSP_H}: con tu carátula te dice en la misma conversación qué plan te conviene. Es gratis. Si prefieres, usa el botón verde de arriba y el mensaje va con tus datos.`,chips:[],escalar:true};},
 };
 
 /* ---------- intenciones (orden = prioridad en empates) ---------- */
@@ -259,9 +306,23 @@ const INT=[
  {id:"que_mirar",k:["que miro al comparar","que miro","que comparo","como comparo","en que me fijo","que debo mirar"],f:D.que_mirar,w:1.5},
  {id:"cambio_isapre",k:["como es el cambio de isapre","cambio de isapre","como me cambio","cambiarme de isapre","requisitos para cambiarme","traspaso","cuanto demora el cambio","cambiarme","me conviene cambiarme","cuanto demora","cuanto me cuesta cambiarme","cuando me puedo cambiar","me puedo cambiar","mucho tramite","es mucho tramite"],f:(p)=>p.afiliable?D.cambio_isapre(p):D.intentar_otra(p),w:1.2},
  {id:"reembolso",k:["reembolso","reembolsar","boleta","reembolsan"],f:KBR("copago"),w:1.4},
+ {id:"complementario_det",k:["como funciona el seguro complementario","seguro complementario","complementario","bmi","bonificacion minima","carencia","carencias","deducible del seguro","reembolso del seguro"],f:(p,q)=>/catastrof|oncolog/.test(norm(q||""))?TXT("catastrofico")(p):TXT("complementario_det")(p),w:1.25},
+ {id:"catastrofico",k:["seguro catastrofico","catastrofico","seguro oncologico","oncologico","seguro de enfermedades graves"],f:TXT("catastrofico"),w:1.35},
+ {id:"topes_det",k:["tipos de tope","veces arancel","tope por evento","tope anual","sin tope","como leo los topes","que significa va"],f:TXT("topes_det"),w:1.4},
+ {id:"ricarte_det",k:["ricarte","ricarte soto","ley ricarte","alto costo","20850","enfermedades de alto costo"],f:TXT("ricarte_det"),w:1.7},
+ {id:"ges_det",k:["que es el ges","como funciona el ges","garantias ges","auge","plazo ges","que cubre el ges","ges"],f:TXT("ges_det"),w:1.25},
+ {id:"caec_act",k:["como activo la caec","activar la caec","activar caec","como uso la caec","red caec","caec"],f:(p,q)=>/activ|como uso|pido|solicit|tramit/.test(norm(q||""))?TXT("caec_act")(p):D.deducible(p),w:1.3},
+ {id:"libre_vs_pref",k:["puedo atenderme en cualquier clinica","cualquier clinica","libre eleccion","prestador preferente","me encierra en una clinica"],f:TXT("libre_vs_pref"),w:1.3},
+ {id:"urgencia_int",k:["urgencia integral","donde voy en una urgencia","a que urgencia voy"],f:TXT("urgencia_int"),w:1.5},
+ {id:"hospital_publico",k:["hospital publico","hospital del estado","sector publico con isapre"],f:TXT("hospital_publico"),w:1.3},
+ {id:"prima_ges",k:["precio ges","prima ges","por que sube el ges","cuanto cuesta el ges","precio de la caec"],f:TXT("prima_ges"),w:1.5},
+ {id:"isapre_info",k:["que tal banmedica","que tal colmena","que tal consalud","que tal cruz blanca","que tal vida tres","es buena","es mala","pros","ventajas","beneficios de","como es","opinion de","que me dices de"],f:(p,q)=>D.isapre_info(p,q),w:1.2},
+ {id:"region_info",k:["vivo en","soy de","en regiones","mi region","que isapre en","en mi ciudad"],f:(p,q)=>D.region_info(p,q),w:1.1},
+ {id:"sin_ejecutivo",k:["necesito un ejecutivo","necesito hablar con un ejecutivo","para que un ejecutivo","me sirve un ejecutivo","necesito un asesor"],f:(p)=>p.afiliable?D.comparar(p):D.sin_ejecutivo(p),w:1.5},
+ {id:"olvido",k:["olvido oncologico","ley del olvido","21656","21.656"],f:KBR("cancer"),w:2},
  {id:"saludo",k:["hola","holi","holis","wenas","buenas","buenos dias","buenas tardes","buenas noches","alo"],f:(p)=>{S.pending=null;return {t:`Hola${p.nombre?" "+p.nombre:""} 👋 Cuéntame qué necesitas: puedo ayudarte a bajar lo que pagas, mejorar la cobertura en tu clínica, entender qué te cubre para tu diagnóstico o ver si te conviene Fonasa.`,chips:sugerir(p)};},w:0.75},
  {id:"escalar",k:["hablar con nico","hablar con alguien","hablar con una persona","persona real","humano","ejecutivo","asesor","me llamen","llamame","llamenme","contactarme","que me contacten","whatsapp","wsp","agendar","reunion","llamar","pueden llamar","me llaman","llamada"],f:D.escalar,w:1.2},
- {id:"bajar_costo",k:["bajar lo que pago","bajar el costo","pago mucho","muy caro","caro","mas barato","barato","ahorrar","pagar menos","bajar el plan","bajar mi plan","reducir","me sale caro","no me alcanza","plata","lucas","demasiado","pago demasiado","precio","bajo el precio","bajar el precio","cuesta mucho","sale muy caro","rebajar"],f:D.bajar_costo,need:"isapre"},
+ {id:"bajar_costo",k:["bajar lo que pago","bajar el costo","pago mucho","muy caro","caro","mas barato","barato","ahorrar","pagar menos","bajar el plan","bajar mi plan","reducir","me sale caro","no me alcanza","plata","lucas","demasiado","carisimo","carisima","caro","muy caro","pago demasiado","precio","bajo el precio","bajar el precio","cuesta mucho","sale muy caro","rebajar"],f:D.bajar_costo,need:"isapre"},
  {id:"mejor_clinica",k:["mejor cobertura","mejor cobertura en mi clinica","mi clinica","atenderme en","clinica","cobertura en","me cubre en","prestador preferente","preferente"],f:D.mejor_clinica},
  {id:"tratamiento",k:["tratamiento","que me cubre","me cubren","cubre mi","que cubre","mi enfermedad","mi diagnostico","controles","remedios de mi","insulina","quimio","dialisis","examenes"],f:D.tratamiento},
  {id:"pasos_plan",k:["paso a paso","cambio de plan","cambiarme de plan","otro plan","como pido","como lo pido","como cambio","pedir el cambio","cambiar el plan","nuevo plan"],f:D.pasos_plan},
@@ -280,8 +341,8 @@ const NO=/^(no|nop|nones|no gracias|despues|después|mas rato)\b/;
 const GRACIAS=/(\bg\w{0,2}acias\b|gra+c?i?as|grax|grasias|graci|muchas gracias|te pasaste|vale|genial|buenisimo|excelente|grande)/;
 
 function lev(a,b){if(Math.abs(a.length-b.length)>1)return 9;const m=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){let prev=m[0];m[0]=i;for(let j=1;j<=b.length;j++){const t=m[j];m[j]=Math.min(m[j]+1,m[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));prev=t;}}return m[b.length];}
-const EXACT=new Set(["pagare","garantia","tope","topes","alza","caro","ges","mcc","tramo","bono","club"]);
-function wmatch(t,w){if(t===w)return 1;if(EXACT.has(w)||t.length<4||w.length<4)return 0;if(lev(t,w)<=1)return .8;if(w.length>7&&t.length>=7&&t.slice(0,7)===w.slice(0,7))return .7;return 0;}
+const EXACT=new Set(["consulta","pagare","garantia","tope","topes","alza","caro","ges","mcc","tramo","bono","club"]);
+function wmatch(t,w){if(t===w)return 1;if(EXACT.has(w)||t.length<4||w.length<4)return 0;if(lev(t,w)<=1)return .8;if(w.length>7&&t.length>=w.length-2&&t.slice(0,7)===w.slice(0,7))return .7;return 0;}
 function score(q,kws){const toks=q.split(" ");let s=0;for(const kw of kws){const k=norm(kw);if(!k)continue;const kw2=k.split(" ");
   if((" "+q+" ").includes(" "+k+" ")){s+=2+1.5*(kw2.length-1);continue;}
   if(kw2.length===1){let b=0;for(const t of toks)b=Math.max(b,wmatch(t,k));if(b)s+=2*b*.75;continue;}
@@ -289,18 +350,18 @@ function score(q,kws){const toks=q.split(" ");let s=0;for(const kw of kws){const
   if(ok&&(Math.max(...pos)-Math.min(...pos))>kw2.length+1)ok=0;
   if(ok)s+=(2+1.5*(kw2.length-1))*.8*(ok/kw2.length);}return s;}
 
-const C={MALO:/(plan (es |esta )?(muy )?(malo|pesimo|penca|charcha)|cubre (muy )?(poco|poquito|nada)|mala cobertura|no me cubre nada|pagaria menos|pagar menos en otra|otra isapre (mas barata|mejor)|mas barata|mas barato)/,NOCAMBIO:/(no (me )?quiero cambiar(me)?|sin cambiarme|no pienso cambiarme|solo (quiero )?saber si mi plan|si mi plan esta bien|mi plan esta bien)/,MHQ:/(declar|preexist|acept|rechaz|afecta|restring|cobran mas|me suben|con )/,HOSP:/(intern|hospitaliz|operar|opero|operacion|cirugia|pabellon|cuenta de la clinica)/,TRAT:/(biologico|dialisis|quimio|insulina|remedio|medicament|tratamiento|terapia|farmac)/,NOLLAMEN:/(no quiero que (nadie )?me (llame|llamen|contacte|contacten)|sin que me llamen|no me llamen|sin llamadas)/,ALZA:/\b(sub(e|en|ieron|io|ir|iendo)|alza|adecuacion|reajust|aumenta)/,PAGO:/\b(pag(o|ar|ando|ue|amos)|plata|lucas|caro|precio|cuesta|cuota|monto)\b/,DEUDA:/(no tengo plata|no puedo pagar|no alcanzo a pagar|deuda|\\bmora\\b|me van a cobrar|atrasad|no he pagado|dejar de pagar)/,
+const C={MALO:/(carisim[oa]|plan (es |esta )?(muy )?(malo|pesimo|penca|charcha|caro)|cubre (muy )?(poco|poquito|nada)|mala cobertura|no me cubre nada|pagaria menos|pagar menos en otra|otra isapre (mas barata|mejor)|mas barata|mas barato)/,NOCAMBIO:/(no (me )?quiero cambiar(me)?|sin cambiarme|no pienso cambiarme|solo (quiero )?saber si mi plan|si mi plan esta bien|mi plan esta bien)/,MHQ:/(declar|delar|clarar|preexist|acept|rechaz|afecta|restring|cobran mas|me suben|con )/,HOSP:/(intern|hospitaliz|operar|opero|operacion|cirugia|pabellon|cuenta de la clinica)/,TRAT:/(biologico|dialisis|quimio|insulina|remedio|medicament|tratamiento|terapia|farmac)/,NOLLAMEN:/(no quiero que (nadie )?me (llame|llamen|contacte|contacten)|sin que me llamen|no me llamen|sin llamadas)/,ALZA:/\b(sub(e|en|ieron|io|ir|iendo)|alza|adecuacion|reajust|aumenta)/,PAGO:/\b(pag(o|ar|ando|ue|amos)|plata|lucas|caro|precio|cuesta|cuota|monto)\b/,DEUDA:/(no tengo plata|no puedo pagar|no alcanzo a pagar|deuda|\\bmora\\b|me van a cobrar|atrasad|no he pagado|dejar de pagar)/,
  FAMILIA:/\b(cargas?|papas?|(?<!cancer de )(?<!cancer a la )mama|padres?|madre|hij[oa]s?|guagua|bebe|esposa|esposo|senora|marido|pareja|ex|suegr[oa]s?|familia|conviviente)\b/,
  AFILIAR:/(me quiero cambiar|quiero cambiarme|me puedo cambiar|cambiarme de isapre|(me )?cambi(o|ar|arme) a (la )?(banmedica|colmena|consalud|cruz blanca|vida tres|nueva masvida|masvida|esencial)|irme a (banmedica|colmena|consalud|cruz blanca|vida tres|masvida|esencial)|cambiar(me)? a (banmedica|colmena|consalud|cruz blanca|vida tres|nueva masvida|masvida|esencial)|pasarme a (banmedica|colmena|consalud|cruz blanca|vida tres|masvida|esencial)|entrar a|ingresar|me recib|me acept|me toman|afiliar|otra isapre|alguna isapre|cambiarme de isapre|cambiar de isapre|me reciben|me aceptan)/,
  COND:/(diabet|cancer|vih|lupus|bypass|manga|obes|infarto|renal|dialisis|alzheimer|parkinson|esclerosis|hepatitis|trasplant|enfermedad|enferm[oa]|diagnost|tumor|artritis|stent)/,
  AYUDA:/(ayuda|no entiendo|me revise|me revisen|revisar mi|explic|me oriente)/,GES:/\b(ges|auge)\b/,DESPUES:/(ya estaba|estando en|despues de (entrar|afiliarme)|cuando ya|ya era de|ya tenia la isapre)/,
- TRABAJO:/\b(pega|trabajo|empleador|empresa)\b/,NOISAPRE:/(no tengo isapre|no aparezco|no tengo plan|no me aparece|dicen que no tengo|sin isapre)/,CIEN:/(100%|100 %|cien por ciento|pague un monton|pague mucho igual|igual pague|igual me cobraron)/};
+ TRABAJO:/\b(pega|trabajo|empleador|empresa)\b/,NOISAPRE:/(no tengo isapre|no aparezco|no tengo plan|no me aparece|dicen que no tengo|sin isapre)/,CIEN:/(100%|100 %|100 por ciento|cien por ciento|dice 100|pague un monton|pague mucho igual|igual pague|igual me cobraron)/};
 function concept(q,id){let b=0;const has=k=>C[k].test(q);
  if(id==="cautivo"&&has("ALZA"))b+=3+(has("COND")?1:0);
  if(id==="bajar_costo"&&(has("PAGO")||/cobra/.test(q))&&!has("ALZA")&&!has("DEUDA")&&!has("CIEN")&&!has("TRAT")&&!has("HOSP"))b+=1.5+(/\b(gano|sueldo|renta)\b/.test(q)?2:0);
  if(id==="deducible"&&has("HOSP")&&!/rechaz|negar|negaron/.test(q)&&!has("AFILIAR"))b+=4;
- if(id==="bajar_costo"&&(has("TRAT")||has("HOSP")))b-=3;
- if(id==="rechazo"&&/rechaz|negaron|no me cubrieron|no me quieren cubrir/.test(q)&&!/licencia/.test(q))b+=4;
+ if(id==="bajar_costo"&&(has("TRAT")||has("HOSP"))&&!/(plan|isapre|pago|cobra|mensual)/.test(q))b-=20;
+ if(id==="rechazo"&&/rechaz|negaron|no me cubrieron|no me quieren cubrir/.test(q)&&!/licen/.test(q))b+=4;
  if(id==="tratamiento"&&has("TRAT")&&(has("COND")||/caro|cara|sale|cuesta/.test(q)))b+=3;
  if(id==="excedentes"&&/excedente|exceso/.test(q))b+=2;
  if(id==="vendedor"&&/vendedor|agente/.test(q))b+=3;
@@ -315,18 +376,27 @@ function concept(q,id){let b=0;const has=k=>C[k].test(q);
  if(id==="leer_plan"&&has("AYUDA")&&/\bplan\b/.test(q))b+=2.5;
  if(/reembols|boleta/.test(q)){if(id==="reembolso")b+=4;if(/cambio_isapre|comparar/.test(id))b-=4;}
  if(/cambi\w* (a|de) (un |otro |mi )?plan/.test(q)&&!/isapre (a|de)/.test(q)){if(id==="pasos_plan")b+=4;if(id==="cambio_isapre")b-=3;}
+ const isaNom=/(banmedica|colmena|consalud|cruz blanca|vida tres|masvida|esencial|b\w{0,2}n\w?medica|banedica|cl?o?lmena|clmena|cruz bl\w?nca|cons?alud)/.test(q);
+ if(id==="isapre_info"&&!isaNom)b-=5;
+ if(id==="catastrofico"&&/olvido/.test(q))b-=6;
+ if(id==="isapre_info"&&isaNom&&/(que tal|es buena|es mala|pros|ventaja|como es|opinion|me dices|beneficio|recomiend|conviene)/.test(q)&&!has("AFILIAR"))b+=4;
+ if(id==="region_info"&&regionDe(q)&&/(isa?pr?e|ispre|isape|conviene|cual|mejor|cubre|clinica)/.test(q))b+=3.5;
+ if(id==="licencia"&&/licen/.test(q))b+=4;
+ if(/\bseguro/.test(q)&&!/cesantia|soap|auto|vida\b/.test(q)){if(id==="complementario_det")b+=5;if(id==="tratamiento")b-=5;}
+ if(id==="catastrofico"&&/catastrof|oncolog/.test(q))b+=2;
  if(has("MALO")&&(id==="comparar"))b+=4;
  if(has("MALO")&&id==="tratamiento")b-=3;
  if(has("NOCAMBIO")){if(id==="leer_plan")b+=4;if(/cambio_isapre|intentar_otra|comparar/.test(id))b-=4;}
  if(MH.test(q)&&has("MHQ")&&id==="salud_mental")b+=5;
+ if(MH.test(q)&&id==="salud_mental")b+=2;
  if(MH.test(q)&&/cargas_kb|intentar_otra|cambio_isapre/.test(id))b-=3;
  return b;}
 const EMO=/(desesperad|angustiad|preocupad|miedo|asustad|no se que hacer|estresad|chat[oa] de|estoy hart[oa]|hart[oa] de|indignad|enojad|rabia|estafad|abuso|injusto|me siento mal|lloran|triste)/;
-const VAGO=/^(ayuda|ayudame|necesito ayuda|consulta|una consulta|tengo una (duda|consulta|pregunta)|duda|pregunta|info|informacion|hola necesito ayuda|me ayudas|puedes ayudarme|tengo un problema|un problema|\?+|ehh?|mmm+|oye)$/;
+const VAGO=/^(ayuda|ayudame|necesito ayuda|consulta|una consulta|tengo (una )?(duda|consulta|pregunta)|duda|pregunta|info|informacion|hola necesito ayuda|me ayudas|puedes ayudarme|tengo un problema|un problema|\?+|ehh?|mmm+|oye)$/;
 const BOT=/(eres (un |una )?(bot|robot|ia|inteligencia artificial|humano|persona|real|maquina)|hablo con (una persona|un humano|alguien real|un bot)|es automatico|me responde una maquina|chatgpt|es un robot|estoy hablando con)/;
 const INSULTO=/(weon|hueon|culiao|ql\b|tonto|inutil|no sirves|no entiendes nada|mierda|estupid|idiota)/;
 const OFF=/(clima|temperatura hoy|chiste|futbol|partido|receta de|seguro (de|del) auto|horoscopo|bitcoin|cripto|netflix)/;
-const LABEL={bajar_costo:"Pagar menos",comparar:"Comparar con otras isapres",mejor_clinica:"Cobertura en mi clínica",tratamiento:"Lo que me cubre para mi tratamiento",cautivo:"El alza de mi plan",intentar_otra:"Cambiarme de isapre",cambio_isapre:"Cambiarme de isapre",fonasa:"Pasarme a Fonasa",complementario_fonasa:"Seguros complementarios",cuanto_pago:"Cuánto debería pagar",deducible:"La CAEC / cuentas grandes",licencia:"Licencias médicas",huella:"Falla de huella",urgencia:"Urgencias",cesantia:"Cesantía / deuda",ges:"GES",tope:"Topes",rechazo:"Un rechazo de cobertura",cargas_kb:"Cargas familiares",leer_plan:"Entender mi plan",reclamo:"Reclamar"};
+const LABEL={sin_ejecutivo:"¿Necesito un ejecutivo?",bajar_costo:"Pagar menos",comparar:"Comparar con otras isapres",mejor_clinica:"Cobertura en mi clínica",tratamiento:"Lo que me cubre para mi tratamiento",cautivo:"El alza de mi plan",intentar_otra:"Cambiarme de isapre",cambio_isapre:"Cambiarme de isapre",fonasa:"Pasarme a Fonasa",complementario_fonasa:"Seguros complementarios",cuanto_pago:"Cuánto debería pagar",deducible:"La CAEC / cuentas grandes",licencia:"Licencias médicas",huella:"Falla de huella",urgencia:"Urgencias",cesantia:"Cesantía / deuda",ges:"GES",tope:"Topes",rechazo:"Un rechazo de cobertura",cargas_kb:"Cargas familiares",leer_plan:"Entender mi plan",reclamo:"Reclamar"};
 const ACK={cautivo:["Entiendo, te llegó el alza.","Ok, vamos con el alza."],bajar_costo:["Vamos a eso.","Entiendo, quieres pagar menos."],tratamiento:["Vamos a lo de tu tratamiento.","Bien, lo que te cubre."],rechazo:["Uf, entiendo, eso molesta.","Ok, un rechazo se puede pelear."],licencia:["Entiendo, lo de la licencia."],deducible:["Buena pregunta, porque ahí es donde más se paga."],comparar:["¡Buena idea!","Claro, comparemos."]};
 function capturar(p,raw){const x=norm(raw);let cambio=false;
  const mi=x.match(/(estoy en|soy de|mi isapre es|tengo|afiliad[oa] a|cotizo en) (la isapre )?(banmedica|colmena|consalud|cruz blanca|vida tres|nueva masvida|masvida|esencial|fonasa)/);
@@ -335,9 +405,10 @@ function capturar(p,raw){const x=norm(raw);let cambio=false;
  const m=montos(raw);if(m.renta){p.renta=m.renta;cambio=true;}if(m.pago){p.pago=m.pago;cambio=true;}
  const cg=x.match(/tengo (\d|un|una|dos|tres|cuatro) (hij|carga)/);if(cg){p.cargas={un:1,una:1,dos:2,tres:3,cuatro:4}[cg[1]]||parseInt(cg[1]);cambio=true;}
  return cambio;}
-function reply(texto){
+const FILL=/\b(eh+|em+|mm+|ehm|este|o sea|bueno|pucha|ya po|cachai|weno|a ver|osea|tipo|igual|po|mira|fijate)\b|\bno se$/g;
+function reply(texto){texto=String(texto||"").replace(/\s+/g," ");
  if(!S) start({});
- const p=S.p, q=norm(texto); S.turn++;
+ const p=S.p, q=norm(texto).replace(FILL," ").replace(/\s+/g," ").trim(); S.turn++;
  let pre="";
  const out=(r,id,conf)=>{S.last=id;S.topics.add(id);if(r.need)S.need=r.need;else S.need=null;S.miss=0;
   let t=r.t;const a=ACK[id];if(a&&q.split(" ").length>3&&!pre)t=pick(a,S.turn)+" "+t;if(pre)t=pre+" "+t;
@@ -347,7 +418,8 @@ function reply(texto){
  capturar(p,texto);
  if(BOT.test(q))return out({t:`Te soy honesto: soy el asistente virtual de IAsapre. Respondo al tiro con la información de tu caso y todo lo que te digo está basado en la normativa vigente. Si en algún momento prefieres que una persona del equipo lo revise, Nico te atiende por WhatsApp al ${WSP_H}. ¿En qué te ayudo?`,chips:sugerir(p)},"bot",1);
  if(INSULTO.test(q))return out({t:`Perdón si no te estoy ayudando como necesitas. Cuéntame en una frase qué pasó con tu isapre y lo vemos; o si prefieres, Nico te atiende directo por WhatsApp al ${WSP_H}.`,chips:sugerir(p).concat([])},"reparar",1);
- if(!q||VAGO.test(q))return out({t:`¡Claro! ¿Sobre qué es? Elige un tema o cuéntamelo con tus palabras, como te salga.`,chips:p.afiliable?["Comparar con otras isapres","Me subieron el plan","Un rechazo de cobertura","Licencias médicas"]:["Pagar menos","Lo que me cubre para mi tratamiento","El alza de mi plan","Licencias médicas"]},"menu",1);
+ const qv=q.replace(/\b(hola|oye|consulta|consultita|preguntita|porfa|por favor|nico|disculpa|una|buenas|buenos dias|buenas tardes)\b/g,"").replace(/\s+/g," ").trim();
+ if(!q||!qv&&/consult|pregunt/.test(q)||qv&&VAGO.test(qv))return out({t:`¡Claro! ¿Sobre qué es? Elige un tema o cuéntamelo con tus palabras, como te salga.`,chips:p.afiliable?["Comparar con otras isapres","Me subieron el plan","Un rechazo de cobertura","Licencias médicas"]:["Pagar menos","Lo que me cubre para mi tratamiento","El alza de mi plan","Licencias médicas"]},"menu",1);
  if(EMO.test(q)){pre=pick(["Te entiendo, y es muy válido sentirse así cuando la isapre complica las cosas. Vamos por partes.","Lamento que estés pasando por esto. Te ayudo a ordenarlo."],S.turn);}
  // 1) datos que pedimos
  if(S.need==="renta"){const v=num(texto);if(v){p.renta=v;return out(D.cuanto_pago(p),"cuanto_pago",1);}}
@@ -355,16 +427,19 @@ function reply(texto){
  const cl=clinicaDe(texto); if(cl&&!/urgencia|cheque|hospitaliz|cuenta|licencia|huella/.test(q)){p.clinica=cl;return out(D.mejor_clinica(p),"mejor_clinica",2);}
  if(C.NOLLAMEN.test(q)){S.miss=0;const f=p.enIsapre?D.bajar_costo:D.fonasa;const r=f(p,texto);return out({t:"Sin problema, nadie te va a llamar: lo resolvemos por acá. "+r.t,chips:r.chips.filter(c=>c!=="Hablar con Nico")},"sin_llamadas",1);}
  const LBL=Object.entries(LABEL).find(([k,v])=>norm(v)===q);if(LBL){const it=INT.find(i=>i.id===LBL[0]);if(it)return out(it.f(p,texto),it.id,2);}
+ if(/^si,? mi pareja o un hijo$|^mi pareja$|^mi hijo$|^mi hija$|^mi senora$|^mi esposo$|^mi esposa$/.test(q)&&S.pending==="familia")return out(D.familia_si(p),"familia_si",2);
+ if(/^no,? solo yo$|^solo yo$|^nadie$|^no hay nadie$/.test(q)&&S.pending==="familia")return out(D.familia_no(p),"familia_no",2);
+ if(/^igual quiero hablar con nico$/.test(q)){S.explicoSinEjec=true;return out(D.escalar(p),"escalar",2);}
  if(/^si,? quiero la comparacion$|^quiero la comparacion$|^comparar con otras isapres$/.test(q))return out(p.afiliable?D.comparar_si(p):D.bajar_costo(p,""),p.afiliable?"comparar_si":"bajar_costo",2);
  // 2) sí / no contextual
- if(SI.test(q)&&!GRACIAS.test(q)&&q.split(" ").length<=4&&S.pending){const pd=S.pending;const map={comparar:[D.comparar_si,"comparar_si"],comparar_si:[D.comparar_si,"comparar_si"],objetivo:[p.enIsapre?D.bajar_costo:D.fonasa,p.enIsapre?"bajar_costo":"fonasa"],pasos_plan:[D.pasos_plan,"pasos_plan"],complementario:[D.complementario_fonasa,"complementario_fonasa"],caec:[D.deducible,"deducible"]};const f=map[pd];if(f)return out(f[0](p),f[1],1);}
+ if(SI.test(q)&&!GRACIAS.test(q)&&q.split(" ").length<=4&&S.pending){const pd=S.pending;const map={familia:[D.familia_si,"familia_si"],comparar:[D.comparar_si,"comparar_si"],comparar_si:[D.comparar_si,"comparar_si"],objetivo:[p.enIsapre?D.bajar_costo:D.fonasa,p.enIsapre?"bajar_costo":"fonasa"],pasos_plan:[D.pasos_plan,"pasos_plan"],complementario:[D.complementario_fonasa,"complementario_fonasa"],caec:[D.deducible,"deducible"]};const f=map[pd];if(f)return out(f[0](p),f[1],1);}
  if(SI.test(q)&&!GRACIAS.test(q)&&q.split(" ").length<=4){S.miss=0;S.last="ack";return {t:"¡Buena! ¿Con qué seguimos? Elige una opción o escríbeme tu duda con tus palabras.",chips:sugerir(p),id:"ack",conf:1};}
  if(NO.test(q)&&q.split(" ").length<=3){S.pending=null;return out({t:"Perfecto. ¿Hay algo más que te preocupe de tu plan o de tu salud previsional? Te respondo acá mismo.",chips:p.enIsapre?["Bajar lo que pago","Qué me cubre para mi tratamiento","Hablar con Nico"]:["Qué me cubre el GES","¿Cuánto pago en Fonasa?"]},"no",1);}
  const resto=q.replace(/\bg\w{0,2}acias\b|muchas|gra+c?i?as|grax|grasias|graci|nico|te pasaste|vale|genial|buenisimo|excelente|grande|ok|ya|bacan|hola/g,"").trim();
  if(GRACIAS.test(q)&&resto.replace(/\b(eso era|eso es todo|nada mas|todo bien|listo|me ayudaste|harto|mucho)\b/g,"").trim().split(" ").filter(Boolean).length<=2&&!INT.some(it=>it.id!=="saludo"&&score(resto,it.k)*(it.w||1)>=1.15)) return out({t:`De nada${p.nombre?", "+p.nombre:""} 🙌 Cuando tengas las opciones de plan o la carta de tu isapre, mándalas por acá o al WhatsApp ${WSP_H} y lo vemos. ¡Que estés bien!`,chips:[]},"gracias",1);
  // 3) intenciones dinámicas
  let best=null,second=null;
- for(const it of INT){const cb=concept(q,it.id);if(it.id==="saludo"&&q.replace(/\b(oye|una|pregunta|consulta|disculpa|porfa|por|favor|nico|buenas|buenos|tardes|dias|noches|hola|wena|wenas|holi|holis)\b/g,"").trim().split(" ").length>2)continue;let s=score(q,it.k)*(it.w||1)+cb;if(s>0&&(!best||s>best.s)){second=best;best={it,s};}else if(s>0&&(!second||s>second.s))second={it,s};}
+ for(const it of INT){const cb=concept(q,it.id);if(it.id==="saludo"&&q.replace(/\b(oye|una|pregunta|consulta|disculpa|porfa|por|favor|nico|buenas|buenos|tardes|dias|noches|hola|wena|wenas|holi|holis|como|estas|esta|que tal|y)\b/g,"").trim().split(" ").filter(Boolean).length>0)continue;let s=score(q,it.k)*(it.w||1)+cb;if(s>0&&(!best||s>best.s)){second=best;best={it,s};}else if(s>0&&(!second||s>second.s))second={it,s};}
  // 4) base estática
  let stat=null; if(root.KB_OFF||typeof KB_OFF!=="undefined"){const kb=root.KB_OFF||KB_OFF;for(const e of kb){if(/^(salud_mental|preex_cambio|clinica|saludo|gracias|cual_isapre)$/.test(e.id))continue;const s=score(q,e.k)*(e.pri||1);if(s>0&&(!stat||s>stat.s))stat={e,s};}}
  const dynOK=best&&best.s>=1.15, statOK=stat&&stat.s>=2;
@@ -390,10 +465,13 @@ function reply(texto){
  if(S.miss>=2){S.miss=0;return {t:`Para no hacerte perder tiempo con esa pregunta, mejor la ve Nico en persona: escríbele al WhatsApp ${WSP_H} y te responde. Mientras, también puedo ayudarte con estas:`,chips:sugerir(p),escalar:true,id:"escalar_auto",conf:0};}
  return {t:pick([`Creo que no te entendí bien. ¿Me lo dices de otra forma, aunque sea con pocas palabras? Por ejemplo: "pagar menos", "me rechazaron algo" o "me subieron el plan".`,`Perdona, no me quedó claro. ¿Es sobre el precio de tu plan, sobre algo que no te cubrieron, o sobre otra cosa?`],S.turn),chips:sugerir(p),id:"no_entendi",conf:0};
 }
-function sugerir(p,last){if(p&&p.afiliable)return ["Comparar con otras isapres","¿Qué miro al comparar?","Me subieron el plan","Hablar con Nico"].filter(c=>!S||!S.topics.has(c));const base=p.enIsapre?["Bajar lo que pago","Qué me cubre para mi tratamiento","Cómo reclamo el alza","¿Me conviene Fonasa?"]:["Qué me cubre el GES","¿Cuánto pago en Fonasa?","Fonasa + seguro complementario"];
+function sugerir(p,last){if(p&&!p.afiliable)return (p.enIsapre?["Bajar lo que pago","Qué me cubre para mi tratamiento","Cómo reclamo el alza","¿Necesito un ejecutivo?"]:["Qué me cubre el GES","¿Cuánto pago en Fonasa?","Fonasa + seguro complementario","¿Necesito un ejecutivo?"]).filter(c=>!S||!S.topics.has(c));if(p&&p.afiliable)return ["Comparar con otras isapres","¿Qué miro al comparar?","Me subieron el plan","Hablar con Nico"].filter(c=>!S||!S.topics.has(c));const base=p.enIsapre?["Bajar lo que pago","Qué me cubre para mi tratamiento","Cómo reclamo el alza","¿Me conviene Fonasa?"]:["Qué me cubre el GES","¿Cuánto pago en Fonasa?","Fonasa + seguro complementario"];
  return base.filter(c=>!S||!S.topics.has(c)).slice(0,3).concat(["Hablar con Nico"]);}
 
 const _start=start;function startG(lead){const r=_start(lead);return {t:guard(r.t),chips:r.chips};}
-root.NicoBot={start:startG,reply,clasificar,perfil,guard,_state:()=>S,_data:{ISAPRES,CONDS,INT}};
+function lead(){if(!S)return null;const p=S.p;let tipo=p.afiliable?(p.clasif.nivel==="restringible"?"conversión con restricción":"conversión"):"orientación";
+ let score=0;if(p.afiliable){score+=40;if(p.renta>=1200000)score+=15;if(p.clinica)score+=10;if(p.pago&&siete(p)&&p.pago>siete(p))score+=15;if(S.comparacion)score+=20;}
+ return {tipo,score:Math.min(score,100),comparacion:!!S.comparacion,familiar:S.last==="familia_si"||S.comparacion&&!p.afiliable,temas:[...S.topics]};}
+root.NicoBot={_dbg:(txt)=>{const q=norm(txt).replace(FILL," ").replace(/\s+/g," ").trim();return INT.map(it=>[it.id,+(score(q,it.k)*(it.w||1)+concept(q,it.id)).toFixed(2)]).filter(x=>x[1]!==0).sort((a,b)=>b[1]-a[1]).slice(0,6);},start:startG,lead,hablado,reply,clasificar,perfil,guard,_state:()=>S,_data:{ISAPRES,CONDS,INT}};
 })(typeof window!=="undefined"?window:globalThis);
 if(typeof module!=="undefined")module.exports=globalThis.NicoBot;
