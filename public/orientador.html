@@ -78,9 +78,9 @@ footer{text-align:center;font-size:12px;color:#9ca3af;padding:24px 20px}
 </section>
 <section id="res">
   <div class="chat">
-    <div class="ch"><div class="av">N</div><div><b>Nico · IAsapre</b><small id="st">leyendo tu formulario…</small></div><a id="wa" target="_blank" href="#">WhatsApp</a></div>
+    <div class="ch"><div class="av">IA</div><div><b>Asistente IAsapre</b><small id="st">leyendo tu formulario…</small></div><a id="wa" target="_blank" href="#">WhatsApp</a></div>
     <div id="msgs"></div>
-    <div class="inp"><textarea id="q" placeholder="Escríbele a Nico lo que quieras sobre tu caso…"></textarea><button onclick="send()" id="send">➤</button></div>
+    <div class="inp"><textarea id="q" placeholder="Escribe tu duda como te salga…"></textarea><button onclick="send()" id="send">➤</button></div>
   </div>
   <div class="dbg" id="dbg"></div>
 </section>
@@ -113,7 +113,7 @@ async function motorExterno(q){if(!NETLIFY)return null;try{const ctrl=new AbortC
  if(!r.ok)return null;const d=await r.json();return (d.text||"").replace(/\[\[CONTACTO\]\]/g,"").trim()||null;}catch(e){return null;}}
 async function send(){if(busy)return;const ta=$("q");const q=ta.value.trim();if(!q)return;ta.value="";clearChips();bubble("u",q);log.push(q);busy=true;$("send").disabled=true;$("st").textContent="escribiendo…";
  let r=NicoBot.reply(q);
- if(r.id==="no_entendi"){const ext=await motorExterno(q);if(ext)r={t:ext,chips:r.chips,id:"motor"};}
+ if(r.id==="no_entendi"){const ext=await motorExterno(q);if(ext)r={t:NicoBot.guard(ext),chips:r.chips,id:"motor"};}
  await decir(r.t,r.chips,r.escalar);
  const g=$("gen");if(g)g.innerHTML=`<b>Última respuesta:</b> ${r.id}${r.conf?" ("+Number(r.conf).toFixed(1)+")":""}`;
  $("st").textContent="en línea · asesor de IAsapre";busy=false;$("send").disabled=false;ta.focus();}
