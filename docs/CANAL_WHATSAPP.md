@@ -2,6 +2,15 @@
 
 > Rol definido por Nico el 13‑oct‑2026 (texto íntegro en `netlify/functions/lib/prompt_whatsapp.js` → `ROL`). Implementado el mismo día como webhook propio sobre **WhatsApp Business Cloud API (Meta)** con número nuevo. Aquí: cómo funciona, cómo ponerlo en marcha y qué se ajustó respecto del texto original.
 
+## Identificadores (configurado el 13‑oct‑2026)
+| Qué | Valor |
+|---|---|
+| App de Meta | IAsapre Orientacion · ID 1445220930900358 · negocio iasapre.cl (675720971680484) |
+| Cuenta de WhatsApp Business (WABA) del asistente | IAsapre Orientacion · ID 3415473525288937 (separada de la cuenta "iasapre cl" donde vive el +56 9 8883 0767, que NO está suscrita a esta app) |
+| Número / Phone number ID | +56 9 5373 0030 · 1318618498009778 (`WSP_PHONE_NUMBER_ID`) |
+| Webhook | https://iasapre-chat.netlify.app/.netlify/functions/whatsapp · verificado y suscrito a `messages` solo para la WABA del asistente |
+| Endpoint de asignaciones HTTP | https://iasapre-chat.netlify.app/.netlify/functions/asignar · `Authorization: Bearer <ASIGNAR_SECRET>` · body `{texto}` o `{nombre, telefono, leadId, renta, region, clinica, cargas, contacto}` |
+
 ## Números
 | Quién | Número | Rol |
 |---|---|---|
@@ -41,7 +50,7 @@ Meta Cloud API ──POST──▶ netlify/functions/whatsapp.js  (GET = verific
 6. **Plantillas** (Meta → WhatsApp Manager → Message templates, categoría *Utility*, idioma español Chile). Necesarias porque la Cloud API solo permite escribirle a alguien fuera de la ventana de 24 h con una plantilla aprobada:
    - `asesoria_inicio`, cuerpo sugerido: *"Hola {{1}}! Te escribe el asistente de IAsapre porque pediste asesoría sobre tu plan de salud. Es gratis y sin compromiso. ¿Te acomoda que lo veamos por acá?"* → `WSP_TEMPLATE_INICIO=asesoria_inicio`.
    - `derivacion_iasapre`, cuerpo sugerido: *"🔔 Derivación IAsapre · {{1}} · {{2}} · urgencia {{3}} · {{4}}. El resumen completo está en el CRM."* → `WSP_TEMPLATE_DERIVACION=derivacion_iasapre`. Alternativa sin plantilla: que el número del especialista le escriba "ok" al asistente una vez al día (abre ventana de 24 h) o leer las derivaciones en el CRM/Discord.
-7. **Plataforma**: que app.iasapre.cl envíe las asignaciones (formato de la sección 1.2 del rol) desde **+56 9 8883 0767** al **+56 9 5373 0030** (Rafa). Si cambia el número emisor, actualizar `NUMEROS.asignaciones` en `lib/prompt_whatsapp.js`.
+7. **Plataforma** (Rafa): dos números de la API de WhatsApp **no pueden escribirse entre sí**, así que la asignación por mensaje desde +56 9 8883 0767 probablemente no llegue. Usar el endpoint HTTP `POST /.netlify/functions/asignar` (secreto `ASIGNAR_SECRET`, mismo formato o campos JSON; ver tabla arriba). La ruta por WhatsApp sigue aceptándose si algún día el emisor es un número normal.
 8. **Prueba**: mandar una asignación de prueba con tu propio número como lead → debes recibir la apertura; responder → el asistente conversa; escribir "quiero hablar con una persona" → derivación en el WhatsApp del especialista, CRM y Discord. Revisar *Functions → whatsapp* en Netlify para ver los logs (sin datos personales).
 
 **Límites a tener presentes**: tiempo máximo de una función Netlify (10 s por defecto; el agente responde en pocos segundos con effort `low`, pero si hay timeouts subir el plan o mover a función background); el número de pruebas de Meta tiene cuota de 250 conversaciones/día hasta verificar el negocio; Blobs está disponible con functions en cualquier plan.
