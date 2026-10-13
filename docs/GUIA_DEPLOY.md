@@ -9,6 +9,7 @@ git add -A && git commit -m "v6: auditoría de datos, traspaso de leads, voz, te
 ```
 **Verificación post‑deploy:**
 ```bash
+npm run smoke   # descarga el motor publicado y corre contra él los barridos de salud mental y cifras + marcadores v6
 curl -s https://iasapre.netlify.app/nico_bot.js | grep -c "urgencia_ley"   # ≥1
 curl -s https://iasapre.netlify.app/orientador | grep -c "notify("          # ≥1
 ```

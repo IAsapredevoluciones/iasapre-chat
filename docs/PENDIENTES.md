@@ -1,17 +1,17 @@
 # Pendientes priorizados (con criterio de aceptación)
 
 ## P0 — esta semana (bloquean conversión)
-1. **Desplegar v6** (`docs/GUIA_DEPLOY.md`). *Aceptación:* `https://iasapre.netlify.app/nico_bot.js` contiene `handoff` y `urgencia_ley`; `npm test` verde contra producción (agregar test de humo remoto).
+1. **Desplegar v6** (`docs/GUIA_DEPLOY.md`). *Estado 12‑oct:* commits listos en `main` local (v6 + v6.1); **falta `git push origin main`** (sin credenciales de GitHub en esta máquina). *Aceptación:* `npm run smoke` en verde (hoy contra producción v3: 6 fallas, 57 cifras prohibidas).
 2. **Destino de leads:** crear `DISCORD_WEBHOOK` (alertas) y `LEADS_WEBHOOK` (Make/Zapier → planilla/CRM) en Netlify. *Aceptación:* un lead de prueba aparece en Discord y en la planilla; el detalle de salud **no** está en Discord.
 3. **Responsable de respuesta < 5 min** a leads `caliente` (humano, definir con Nico) y ajustar el texto "normalmente el mismo día hábil".
-4. **Ocultar el panel de depuración** en producción (mostrar solo con `?debug=1`).
+4. ✅ **Ocultar el panel de depuración** en producción (solo con `?debug=1`; test `ui_debug.js`).
 
 ## P1 — próximas 2 semanas
 5. **Conectar el formulario de iasapre.cl** al flujo (opciones: iframe/enlace a `/orientador`, o `modules/orientador/netlify/functions/orientar.js`). Cuidar nombres de lib (hay `lib/prompt.js` en dos lugares → renombrar el del módulo).
 6. **app.iasapre.cl** (Rafa): nuevo estado "Lead de orientación", botón "Abrir WhatsApp", guardar `resumen` y `nota_interna`.
-7. **ANTHROPIC_API_KEY** + prueba de `chat.js` con guard server‑side (hoy el guard se aplica en el cliente; moverlo también al servidor) y límites de costo/rate limit.
+7. **ANTHROPIC_API_KEY** + prueba real de `chat.js` (✅ guard server‑side aplicado, test `chat_guard.js`; falta la API key y límites de costo/rate limit).
 8. **Centro de ayuda de la raíz (`/`)**: sigue diciendo que salud mental es cobertura restringida (es un sitio estático separado, proxy a tangerine‑khapse‑1f7965.netlify.app). Corregir y alinear con la KB.
-9. **UF dinámica**: hoy `UF=41000` constante. Usar `https://mindicador.cl/api/uf` con caché y fallback; actualizar tramos Fonasa/tope imponible por año.
+9. ✅ **UF dinámica** (mindicador.cl, caché diaria, fallback 41.000; tests `uf.js` y `ui_uf.js`). Pendiente: actualizar tramos Fonasa/tope imponible por año.
 10. **Verificar lo "NO verificado"** de `FUENTES_VERIFICADAS.md` (cobertura mínima legal, convenios, Ley 21.656, seguros).
 11. **Cargar fichas v2** de Vida Tres, Nueva Masvida, Esencial en `ISAPRES/PROS` y `planes.json` (extractor pdfplumber de carátulas).
 12. **CNAME `chat.iasapre.cl` → iasapre.netlify.app** (Rafa, Nebox).

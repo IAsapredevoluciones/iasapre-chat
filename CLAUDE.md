@@ -11,10 +11,10 @@
    - **Afiliables** (sin preexistencias o con restricción): personalizar y empujar, siempre con honestidad, a **comparar con otras isapres** (mejor cobertura/red o menor precio) y a pedir la comparación → ejecutivo.
    - **No afiliables**: **resolverlos con el bot** (~90 % sin derivar a Nico) explicando por qué cambiarse no aplica y qué sí pueden hacer (optimizar dentro de su isapre, Fonasa + complementario, GES/CAEC, reclamar alzas). Solo derivar si insisten; ofrecer comparar para un **familiar** que cotice por su cuenta. Así se cuida el tiempo de los ejecutivos.
 
-## 2. Estado actual (12-oct-2026) — v6
+## 2. Estado actual (12-oct-2026) — v6.1
 - Motor offline `public/nico_bot.js` (~115 KB) + base `public/kb_offline.js` (55 temas) + landing `public/orientador.html`.
-- **Batería: 15/15 en verde** (`npm test`). Simulación de 10.000 conversaciones ≈ 100 % comprensión.
-- **Sitio público https://iasapre.netlify.app/orientador sigue con v3** (la v6 no se pudo desplegar por fallas de Chrome MCP). **Primera tarea: desplegar** (ver `docs/GUIA_DEPLOY.md`). Con Claude Code basta `git push`.
+- **Batería: 20/20 en verde** (`npm test`). Simulación de 10.000 conversaciones ≈ 100 % comprensión. `npm run smoke` prueba producción (motor publicado) con los mismos barridos.
+- **Sitio público https://iasapre.netlify.app/orientador sigue con v3** hasta que se haga `git push origin main` (los commits v6/v6.1 están en `main` local; esta máquina no tiene credenciales de GitHub). Verificar después con `npm run smoke`.
 - Pruebas manuales: artifact de Claude https://claude.ai/artifact/64UmdfC6HVw5dBhj32Fr8w (misma landing, todo inline).
 - Repo GitHub: `IAsapredevoluciones/iasapre-chat` (público) → Netlify sitio `iasapre` (deploy automático desde `main`).
 
@@ -29,7 +29,7 @@ netlify/functions/
   contact.js               recibe leads (stage form|comparacion|escalar|wa_click) → LEADS_WEBHOOK / ZAPIER_WEBHOOK / DISCORD_WEBHOOK
   lib/prompt.js            base de conocimiento (18 secciones) para chat.js — AUDITADA, ver docs/FUENTES_VERIFICADAS.md
 modules/orientador/        módulo SEPARADO, NO desplegado: orientar.js (POST /api/orientar) para integrar el formulario de iasapre.cl
-tests/                     batería (ver §6)
+tests/                     batería (ver §6) · remote_smoke.js = humo contra producción (npm run smoke)
 docs/                      ARQUITECTURA, FUENTES_VERIFICADAS, DECISIONES_Y_REGLAS, PENDIENTES, GUIA_DEPLOY, CHANGELOG, PROMPT_INICIAL
 netlify.toml               publish=public; functions; redirect catch‑all a un sitio estático antiguo (force=false → los archivos locales ganan)
 ```
@@ -46,19 +46,21 @@ netlify.toml               publish=public; functions; redirect catch‑all a un 
 ## 5. Cómo funciona el motor (resumen; detalle en `docs/ARQUITECTURA.md`)
 `NicoBot.start(lead)` → perfil + clasificación + mensajes iniciales (burbujas). `NicoBot.reply(texto)` → pipeline:
 normalización (`norm`, TYPO, muletillas de audio `FILL`, números hablados `hablado()`) → `capturar()` (datos de pasada: isapre, clínica, montos) → atajos conversacionales (¿bot?, insulto, vago, emoción, fuera de tema) → respuestas contextuales sí/no según `S.pending`/`S.need` → **scoring de intenciones** `INT` (palabras clave difusas + Levenshtein + `concept()` con reglas de contexto) → desambiguación / multi‑pregunta → fallback `KB_OFF` → `no_entendi` (2 intentos y deriva) → `guard()` + `humanizar()`.
-Respuestas: `D.*` (dinámicas con datos del perfil), `EXT` (textos largos verificados), `KB_OFF` (offline). Exporta además `lead()`, `handoff()`, `waTexto()`, `guard()`, `hablado()`, `_dbg()` (puntajes de intención), `_state()`.
+Respuestas: `D.*` (dinámicas con datos del perfil), `EXT` (textos largos verificados), `KB_OFF` (offline). Exporta además `lead()`, `handoff()`, `waTexto()`, `guard()`, `hablado()`, `setUF()`/`uf()` (UF del día inyectada por la página; respaldo 41.000), `_dbg()` (puntajes de intención), `_state()`.
 
 ## 6. Pruebas (`npm install && npm test`)
-`npm run test:quick` ≈ 10 s (sin simulaciones ni jsdom) para iterar; `npm run test:fast` ≈ 3 min (con simulaciones); `npm test` ≈ 6 min (todo). Ejecutar siempre completo antes de cada push.
+`npm run test:quick` ≈ 10 s (sin simulaciones ni jsdom) para iterar; `npm run test:fast` ≈ 3 min (con simulaciones); `npm test` ≈ 6 min (todo). Ejecutar siempre completo antes de cada push. `npm run smoke` (red) valida el sitio publicado.
 | Test | Qué mide | Umbral |
 |---|---|---|
 | holdout*.js, holdout_conv.js | casos escritos aparte, regresión | 100 % |
-| blind*.js | sets "a ciegas" escritos antes de ajustar (mide generalización) | ≥ 95 % |
+| blind*.js (1–5) | sets "a ciegas" escritos antes de ajustar (mide generalización) | ≥ 95 % |
+| uf.js, chat_guard.js | UF inyectable sin red en el motor; guard() en el servidor | pasan |
 | mh_sweep.js | 352 respuestas × perfiles de salud mental: 0 inconsistencias | 0 |
 | audit_sweep.js | ninguna respuesta contiene cifras/frases ya corregidas | 0 |
 | sim3.js / sim.js | miles de conversaciones sintéticas con typos, mayúsculas, muletillas, 1/3 "por voz" | ≥ 99 % / ≥ 98 % |
-| ui_smoke, e2e_flow, e2e_voz (jsdom) | página real: burbujas, avisos al backend, WhatsApp sin salud, re‑enganche, dictado | pasan |
-**Método para mejorar:** (1) escribir un set NUEVO a ciegas con frases realistas, medir; (2) corregir reglas (`concept()`, keywords, texto); (3) mover los casos al set de regresión; (4) re‑correr todo. No ajustar contra el mismo set que se mide. Panel de depuración visible bajo el chat: muestra intención (`id`), puntaje y tier del lead.
+| ui_smoke, e2e_flow, e2e_voz, ui_debug, ui_uf (jsdom) | página real: burbujas, avisos al backend, WhatsApp sin salud, re‑enganche, dictado, panel solo con ?debug=1, UF con caché/fallback | pasan |
+| remote_smoke.js (`npm run smoke`, fuera de `npm test`) | motor publicado en producción: marcadores v6, guard, barridos MH y cifras | 0 fallas |
+**Método para mejorar:** (1) escribir un set NUEVO a ciegas con frases realistas, medir; (2) corregir reglas (`concept()`, keywords, texto); (3) mover los casos al set de regresión; (4) re‑correr todo. No ajustar contra el mismo set que se mide. Panel de depuración bajo el chat solo con `?debug=1`: muestra intención (`id`), puntaje, tier del lead, avisos enviados y UF usada.
 
 ## 7. Flujo de leads (landing → backend)
 Submit del formulario → `notify("form")` (mínimo). Al pedir comparación (`D.comparar_si`) → `notify("comparacion")` con resumen completo (`NicoBot.handoff()`: tier, score, renta, 7 %, clínica, cargas, nota interna). Pedir persona → `escalar`. Clic en WhatsApp → `wa_click`. Cada etapa se envía **una sola vez**. Re‑enganche por silencio (40 s / 75 s, una vez). **Requiere env vars en Netlify** (`DISCORD_WEBHOOK` y/o `LEADS_WEBHOOK`); sin ellas `contact.js` solo deja un respaldo mínimo en logs.
