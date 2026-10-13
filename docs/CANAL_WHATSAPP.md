@@ -53,6 +53,13 @@ Meta Cloud API ──POST──▶ netlify/functions/whatsapp.js  (GET = verific
 7. **Plataforma** (Rafa): dos números de la API de WhatsApp **no pueden escribirse entre sí**, así que la asignación por mensaje desde +56 9 8883 0767 probablemente no llegue. Usar el endpoint HTTP `POST /.netlify/functions/asignar` (secreto `ASIGNAR_SECRET`, mismo formato o campos JSON; ver tabla arriba). La ruta por WhatsApp sigue aceptándose si algún día el emisor es un número normal.
 8. **Prueba**: mandar una asignación de prueba con tu propio número como lead → debes recibir la apertura; responder → el asistente conversa; escribir "quiero hablar con una persona" → derivación en el WhatsApp del especialista, CRM y Discord. Revisar *Functions → whatsapp* en Netlify para ver los logs (sin datos personales).
 
+**Lecciones de la puesta en marcha (13‑oct‑2026)**
+- La app de Meta debe estar **publicada** (Publicar → modo activo). Sin publicar, Meta solo entrega webhooks de prueba del panel; los mensajes reales nunca llegan a la función (se perdieron todos los "hola" enviados antes de publicar).
+- El token temporal del panel de Meta caduca o se invalida al cambiar la contraseña: la API responde `401 Authentication Error`. Usar siempre el token del **usuario de sistema** "IAsapre Orientacion" (Business Settings → Usuarios del sistema → Generar token). Generarlo requiere que **otro administrador del negocio apruebe la solicitud** (Configuración → Solicitudes).
+- Netlify Blobs: `consistency: "strong"` no está disponible en funciones clásicas (`uncachedEdgeURL`); el store usa consistencia eventual.
+- Las variables nuevas en Netlify solo se aplican tras un **redeploy** (Deploys → Trigger deploy → Deploy project).
+- Suscripción de la WABA a la app: `GET /{WABA_ID}/subscribed_apps` con el Explorador de la API Graph debe listar la app.
+
 **Límites a tener presentes**: tiempo máximo de una función Netlify (10 s por defecto; el agente responde en pocos segundos con effort `low`, pero si hay timeouts subir el plan o mover a función background); el número de pruebas de Meta tiene cuota de 250 conversaciones/día hasta verificar el negocio; Blobs está disponible con functions en cualquier plan.
 
 ## Ajustes respecto del texto original de Nico (pequeños, ninguno cambia el flujo)
