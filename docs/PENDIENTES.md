@@ -38,3 +38,11 @@
 - **Ramificar por señales de intención**, no solo por palabras clave ✔ (tiers/score).
 - **No abandonar tras un mensaje sin respuesta** ✔ re‑enganche (extender a WhatsApp).
 - Medir por **lead calificado**, no por clics.
+
+## Canal WhatsApp (13‑oct‑2026, tras la puesta en marcha)
+- [ ] Rod Burgos o Rafael Leyton aprueban la solicitud de token (Meta Business Suite → Configuración → Solicitudes); luego generar el token del usuario de sistema "IAsapre Orientacion" (Usuarios del sistema → Generar token, app IAsapre Orientacion, permisos `whatsapp_business_messaging` + `whatsapp_business_management`, sin caducidad) y reemplazar `WSP_TOKEN` en Netlify (el actual es un token de usuario que vence el 12‑12‑2026) + Trigger deploy.
+- [ ] Rotar `ANTHROPIC_API_KEY` (la primera clave se pegó por error en la terminal) y borrar la vieja en Claude Platform → API keys.
+- [ ] Rafa: app.iasapre.cl llama a `POST https://iasapre-chat.netlify.app/.netlify/functions/asignar` con `Authorization: Bearer <ASIGNAR_SECRET>` al asignar un lead (campos o `texto`).
+- [ ] Plantillas `asesoria_inicio` y `derivacion_iasapre` en revisión en Meta; verificación del negocio para mensajes iniciados por la empresa; nombre visible "IAsapre Orientacion" en revisión.
+- [ ] Probar derivación real ("quiero hablar con una persona") y revisar el aviso en +56 9 8538 0357 (llega por plantilla cuando esté aprobada; mientras, por LEADS_WEBHOOK/Discord si se configuran).
+- [ ] Créditos de Claude Platform: reclamar los USD 200 del plan Max cada mes (Billing) o agregar tarjeta; límite de gasto mensual USD 500.
