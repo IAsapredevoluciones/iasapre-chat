@@ -1,0 +1,54 @@
+
+============================== María José Pérez → no_afiliable | orientacion_automatica | plantilla
+diabetes (tipo 1 o 2)
+
+Hola María, te escribe Nico, de IAsapre. Vi tu formulario desde Maipú, con 2 cargas y hay algo importante que tienes que saber antes de seguir cotizando.
+
+Te lo digo sin vueltas: declarando diabetes, ninguna isapre te va a abrir la puerta como nueva afiliación. Y ocultarlo sería peor, porque si lo descubren pueden dejarte sin cobertura y cerrar el contrato.
+
+Lo bueno es que dentro de Consalud sí te puedes mover: cambiar de plan en tu misma isapre no exige nueva Declaración de Salud y tu cobertura actual se mantiene. Normalmente se puede ajustar el plan a tu 7%, buscar uno preferente en la clínica que más usas (Clínica Dávila, por lo que nos cuentas) y revisar si tus excedentes y cargas están bien aprovechados. Además, revisa que tu patología esté activada en GES si corresponde: baja mucho el copago.
+
+Te propongo que lo veamos juntos: me mandas tu carátula por WhatsApp al +56 9 8538 0357 y te digo qué plan de tu isapre te rinde más. Es gratis. ¿Te acomoda que te escriba hoy?
+
+[link lead] https://wa.me/56985380357?text=Hola%20Nico%2C%20soy%20Mar%C3…
+[nota interna] LEAD DE ORIENTACIÓN · diabetes (tipo 1 o 2) · Isapre actual: Consalud · Renta: 1.400.000 · Cargas: 2 · Clínica: Clínica Dávila. Estrategia: optimizar dentro de su isapre actual (cambio de plan sin nueva Declaración de Salud) o Fonasa + complementario. No asignar a ejecutivo de otra isapre.
+
+============================== Jorge Álvarez → no_afiliable | orientacion_automatica | plantilla
+cardiopatía grave (infarto, bypass, stent, insuficiencia cardíaca) · dislipidemia
+
+Jorge, hola. Nico de IAsapre por acá. Revisé lo que nos mandaste desde Viña del Mar y prefiero ser directo contigo desde el primer mensaje.
+
+Te lo digo sin vueltas: declarando un problema cardíaco importante, ninguna isapre te va a abrir la puerta como nueva afiliación. Y ocultarlo sería peor, porque si lo descubren pueden dejarte sin cobertura y cerrar el contrato.
+
+Lo bueno es que dentro de Banmédica sí te puedes mover: cambiar de plan en tu misma isapre no exige nueva Declaración de Salud y tu cobertura actual se mantiene. Normalmente se puede ajustar el plan a tu 7%, buscar uno preferente en la clínica que más usas y revisar si tus excedentes y cargas están bien aprovechados. Además, revisa que tu patología esté activada en GES si corresponde: baja mucho el copago.
+
+Te propongo que lo veamos juntos: me mandas tu carátula por WhatsApp al +56 9 8538 0357 y te digo qué plan de tu isapre te rinde más. Es gratis. ¿Te acomoda que te escriba hoy?
+
+[link lead] https://wa.me/56985380357?text=Hola%20Nico%2C%20soy%20Jorge.…
+[nota interna] LEAD DE ORIENTACIÓN · cardiopatía grave (infarto, bypass, stent, insuficiencia cardíaca); dislipidemia · Isapre actual: Banmédica · Renta: 2.600.000 · Cargas: no · Clínica: s/d. Estrategia: optimizar dentro de su isapre actual (cambio de plan sin nueva Declaración de Salud) o Fonasa + complementario. No asignar a ejecutivo de otra isapre.
+
+============================== Camila Rojas → no_afiliable | orientacion_automatica | plantilla
+obesidad (IMC sobre ~35) o cirugía bariátrica · cirugía previa
+
+Hola Camila, soy Nico de IAsapre. Leí tu formulario desde Concepción, con 1 carga y te quiero contestar con la verdad, porque para eso nos escribiste.
+
+Con obesidad o cirugía bariátrica, hoy las isapres no te van a aceptar como nueva afiliación. No es algo personal: así funciona su suscripción, y tampoco te conviene omitirlo en la Declaración de Salud, porque después pueden negarte cobertura y terminar el contrato.
+
+Lo honesto es mirar Fonasa con calma: no tiene preexistencias ni exclusiones, la red pública es con copago cero y en libre elección puedes usar clínicas privadas con bonos. Si quieres más cobertura en privados, un seguro complementario sobre Fonasa suele rendir más que forzar una isapre.
+
+Si quieres, un ejecutivo revisa tu carátula contigo, gratis y sin compromiso, por WhatsApp al +56 9 8538 0357. Respóndeme con un "sí" y te escribo. ¿Qué clínica es la que más usas hoy?
+
+[link lead] https://wa.me/56985380357?text=Hola%20Nico%2C%20soy%20Camila…
+[nota interna] LEAD DE ORIENTACIÓN · obesidad (IMC sobre ~35) o cirugía bariátrica; cirugía previa · Isapre actual: Fonasa · Renta: 900.000 · Cargas: 1 · Clínica: s/d. Estrategia: orientar a Fonasa + seguro complementario (no es afiliable en isapre). No asignar a ejecutivo de otra isapre.
+
+============================== Andrea Soto → evaluar | flujo_normal | -
+cáncer con menos de 5 años desde el alta (posible olvido oncológico)
+[nota interna] Asignar ejecutivo según ranking normal.
+
+============================== Pedro Muñoz → restringible | flujo_normal | -
+hipertensión controlada
+[nota interna] Afiliable con restricción 18 meses: asignar ejecutivo normal y advertirle la restricción.
+
+============================== Lucía Fernández → sin_impacto | flujo_normal | -
+
+[nota interna] Asignar ejecutivo según ranking normal.

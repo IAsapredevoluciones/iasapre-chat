@@ -1,0 +1,8 @@
+[
+  { "nombre": "María José Pérez", "edad": 46, "telefono": "+56 9 1111 2222", "isapre": "Consalud", "renta": "1.400.000", "region": "RM", "comuna": "Maipú", "cargas": "2", "edad_cargas": "8 y 12", "preexistencias": "Sí", "detalle_preexistencias": "diabetes tipo 2 con metformina", "clinica_interes": "Clínica Dávila", "contacto_pref": "WhatsApp" },
+  { "nombre": "Jorge Álvarez", "edad": 58, "telefono": "912345678", "isapre": "Banmédica", "renta": "2.600.000", "region": "Valparaíso", "comuna": "Viña del Mar", "cargas": "no", "preexistencias": "Sí", "detalle_preexistencias": "Infarto el 2023, con dos stent. Tomo atorvastatina.", "que_busca": "bajar el costo del plan, pago casi 300 mil" },
+  { "nombre": "Camila Rojas", "edad": 34, "telefono": "+56998887777", "isapre": "Fonasa", "renta": "900.000", "region": "Biobío", "comuna": "Concepción", "cargas": "1", "preexistencias": "Sí", "detalle_preexistencias": "Cirugía bariátrica manga gástrica en 2024", "que_busca": "entrar a isapre para atenderme en la Clínica Biobío" },
+  { "nombre": "Andrea Soto", "edad": 41, "isapre": "Vida Tres", "renta": "3.100.000", "comuna": "Las Condes", "preexistencias": "Sí", "detalle_preexistencias": "cáncer de mama tratado, alta hace 7 años" },
+  { "nombre": "Pedro Muñoz", "edad": 29, "isapre": "Cruz Blanca", "renta": "1.800.000", "comuna": "Ñuñoa", "preexistencias": "Sí", "detalle_preexistencias": "hipertensión controlada con losartán" },
+  { "nombre": "Lucía Fernández", "edad": 37, "isapre": "Colmena", "renta": "2.000.000", "comuna": "Providencia", "preexistencias": "No" }
+]

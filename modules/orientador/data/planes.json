@@ -1,0 +1,10 @@
+{
+  "_doc": "Catálogo opcional de planes por isapre (clave = nombre de la isapre en minúsculas sin tildes ni espacios). Si una isapre no está, el mensaje habla de tipos de alternativa sin inventar nombres. Alimentar desde la normalización de planes (JSON del extractor pdfplumber) o desde tu7.cl. Campos: nombre, codigo, precio_base_uf, hosp_pct, amb_pct, prestador_preferente, tope_hosp.",
+  "consalud": [],
+  "banmedica": [],
+  "colmena": [],
+  "cruzblanca": [],
+  "vidatres": [],
+  "nuevamasvida": [],
+  "esencial": []
+}

@@ -1,1 +1,22 @@
-{ "name": "iasapre-chat-backend", "version": "3.0.0", "private": true, "engines": { "node": ">=18" } }
+{
+  "name": "iasapre-chat",
+  "version": "6.0.0",
+  "private": true,
+  "description": "Asistente conversacional de IAsapre (NicoBot): motor offline + landing + funciones Netlify",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node tests/run_all.js",
+    "test:fast": "node tests/run_all.js --fast",
+    "test:e2e": "node tests/run_all.js --only e2e",
+    "sim": "node tests/sim3.js 10000",
+    "serve": "npx --yes serve public -l 8888",
+    "chat": "node tools/chat_cli.js",
+    "dbg": "node tools/dbg.js",
+    "test:quick": "node tests/run_all.js --fast --nosim"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  }
+}

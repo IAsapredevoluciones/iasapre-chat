@@ -1,0 +1,12 @@
+# Decisiones de producto tomadas con Nico (cronológico)
+- **Motor autónomo sin API key**: el chat debe funcionar solo; la API de Claude es un complemento opcional.
+- **No afiliables resueltos por el bot** (~90 %), con información real y fiable; solo se deriva si insisten. Se les explica *por qué no vale la pena pasar con un ejecutivo* y se ofrece comparar para un familiar.
+- **Afiliables (con o sin restricción)**: siempre orientar a **comparar con otras isapres** (mejor cobertura/red o menor precio) y a revisar/cambiar; con honestidad y personalización.
+- **Salud mental**: nunca se presenta como preexistencia ni restricción (error detectado y corregido; cortafuegos + tests).
+- **Flexibilidad conversacional**: tolerar preguntas mal formuladas, orden no lineal, jerga/typos, **audio**. Referencias de diseño: bots de calificación tipo Nexor/WhatsApp (mensajes cortos, una pregunta a la vez, calificar conversando).
+- **Respuestas "poco IA"**: tono humano, variación, sin tecnicismos sin explicar.
+- **Información verificable**: toda cifra con fuente oficial (Superintendencia de Salud, ChileAtiende, BCN, Minsal, FNE) — ver `FUENTES_VERIFICADAS.md`.
+- **Identidad**: "asistente de IAsapre" (no se hace pasar por persona).
+- **Orientación a conversión**: aviso al equipo al enviar formulario y al pedir comparación; WhatsApp con contexto; re‑enganche; respuesta humana rápida (meta < 5 min, a confirmar con Nico).
+- **Infra**: GitHub → Netlify (sitio `iasapre`); dominio propuesto `chat.iasapre.cl` (CNAME lo hace Rafa); API key aún no cargada.
+- **Imagen de marca**: Nico guarda decisiones en la carpeta "Diseños IAsapre" (escritorio) — consultar antes de producir piezas visuales. Paleta: azul #4177F7, turquesa #69CBC1, gris #282C37; Plus Jakarta Sans.

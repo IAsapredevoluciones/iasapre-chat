@@ -1,0 +1,17 @@
+const {JSDOM}=require("jsdom");const fs=require("fs");
+const html=require("./inline.js")();
+const dom=new JSDOM(html,{runScripts:"dangerously",pretendToBeVisual:true,url:"https://example.org/"});
+const w=dom.window;w.HTMLElement.prototype.scrollIntoView=function(){};w.open=(u)=>{console.log("WA→",decodeURIComponent(u).slice(0,140));};
+const d=w.document;const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+(async()=>{const f=d.getElementById("f");const set=(n,v)=>{f.elements[n].value=v;};
+ set("nombre","Jorge Álvarez");set("edad","58");set("telefono","912345678");set("isapre","Banmédica");set("renta","2600000");set("region","Valparaíso");set("comuna","Viña del Mar");set("cargas","no");set("clinica_interes","Clínica Ciudad del Mar");set("preexistencias","Sí");set("detalle_preexistencias","Infarto el 2023, con dos stent");set("que_busca","bajar el costo, pago casi 300 mil");
+ f.dispatchEvent(new w.Event("submit",{cancelable:true}));await sleep(16000);
+ const bubs=()=>[...d.querySelectorAll("#msgs .bub")].map(b=>b.textContent);
+ console.log("Burbujas iniciales:",bubs().length);bubs().forEach((b,i)=>console.log(" ["+i+"] "+b.slice(0,110)));
+ const chips=[...d.querySelectorAll("#msgs .chip")].map(c=>c.textContent);console.log("Chips:",chips.join(" | "));
+ d.querySelector("#msgs .chip").click();await sleep(9000);const b2=bubs();console.log("\nTras chip 1 →",b2.slice(-3).map(x=>x.slice(0,90)));
+ d.getElementById("q").value="me llego la carta de alza en marzo";await w.send();const b3=bubs();console.log("\nAlza →",b3[b3.length-1].slice(0,160));
+ const msgs=d.getElementById("msgs");console.log("\nscrollTop==scrollHeight?",msgs.scrollTop,msgs.scrollHeight);
+ console.log("Panel:",d.getElementById("dbg").textContent.slice(0,200));
+ [...d.querySelectorAll("#msgs .chip")].find(c=>/Nico/.test(c.textContent))?.click();
+})();

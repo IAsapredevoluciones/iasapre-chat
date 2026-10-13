@@ -97,30 +97,46 @@ function bubble(role,txt){const m=document.createElement("div");m.className="m "
 function typing(){const m=document.createElement("div");m.className="m a";m.innerHTML='<div class="bub"><div class="typing"><i></i><i></i><i></i></div></div>';$("msgs").appendChild(m);scrollDown();return m;}
 function clearChips(){document.querySelectorAll("#msgs .chips").forEach(c=>c.remove());}
 function chips(list,escalar){clearChips();if(!list||!list.length){if(!escalar)return;}const d=document.createElement("div");d.className="chips";
- (list||[]).forEach(c=>{const b=document.createElement("button");b.className="chip"+(c==="Hablar con Nico"?" wa":"");b.textContent=c;b.onclick=()=>{if(c==="Hablar con Nico"){abrirWA();}else{$("q").value=c;send();}};d.appendChild(b);});
+ (list||[]).forEach(c=>{const b=document.createElement("button");b.className="chip"+((c==="Hablar con Nico"||c==="Escribir por WhatsApp ahora")?" wa":"");b.textContent=c;b.onclick=()=>{if(c==="Hablar con Nico"||c==="Escribir por WhatsApp ahora"){abrirWA();}else{$("q").value=c;send();}};d.appendChild(b);});
  if(escalar){const b=document.createElement("button");b.className="chip wa";b.textContent="Abrir WhatsApp de Nico";b.onclick=abrirWA;d.appendChild(b);}
  $("msgs").appendChild(d);scrollDown();}
-function waText(){return "Hola Nico, soy "+(lead.nombre||"").split(" ")[0]+". Vengo del asistente de IAsapre ("+(lead.isapre||"")+(lead.detalle_preexistencias?", "+lead.detalle_preexistencias:"")+"). "+(log.length?"Mi última consulta: "+log[log.length-1]:"Quiero revisar mi plan.");}
-function abrirWA(){window.open("https://wa.me/"+WSP+"?text="+encodeURIComponent(waText()),"_blank");}
+function waText(){try{return NicoBot.waTexto();}catch(e){return "Hola, quiero revisar mi plan de isapre.";}}
+function abrirWA(){notify("wa_click");window.open("https://wa.me/"+WSP+"?text="+encodeURIComponent(waText()),"_blank");}
+/* ---- traspaso al equipo: el lead nunca se pierde ---- */
+const sent=new Set();
+function payload(stage){let H=null;try{H=NicoBot.handoff();}catch(e){}H=H||{tier:"nuevo",score:0,resumen:"",resumenBasico:"",nota:"",pregunta:"",temas:[]};const full=stage!=="form";
+ return {name:lead.nombre||"",phone:lead.telefono||"",email:lead.email||"",preference:String(lead.contacto_pref||"WhatsApp").toLowerCase(),stage,tier:H.tier,score:H.score,
+  question:full?H.pregunta:"(formulario recibido)",resumen:full?H.resumen:H.resumenBasico,nota_interna:H.nota,transcript:full?log.slice(-12):[],source:"orientador",page:location.href,timestamp:new Date().toISOString(),hp:""};}
+async function notify(stage){if(!NETLIFY||sent.has(stage))return;sent.add(stage);try{const r=await fetch("/.netlify/functions/contact",{method:"POST",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify(payload(stage))});if(!r.ok)sent.delete(stage);}catch(e){sent.delete(stage);}paintDbg();}
+function paintDbg(){const g=$("gen");if(g&&!g.dataset.base)g.dataset.base=g.innerHTML;const s=$("sentv");if(s)s.textContent=[...sent].join(" · ")||"—";}
+/* ---- re-enganche si se queda en silencio (una sola vez por tipo) ---- */
+const IDLE=window.__IDLE||{wa:40000,cmp:75000};let idleT=null;const nudged={};
+function idle(){clearTimeout(idleT);let L=null;try{L=NicoBot.lead();}catch(e){}if(!L)return;let key=null,ms=0,fn=null;
+ if(L.comparacion&&!sent.has("wa_click")){key="wa";ms=IDLE.wa;fn=()=>{bubble("a","Si quieres que te respondan más rápido, escríbenos ahora por WhatsApp: el mensaje va con tu resumen y no tienes que repetir nada.");chips(["Escribir por WhatsApp ahora"],false);};}
+ else if(!L.comparacion&&(L.tier==="tibio"||L.tier==="tibio_alto")){key="cmp";ms=IDLE.cmp;fn=()=>{bubble("a","¿Sigues por ahí? Si quieres, te dejo armada la comparación con las otras isapres: es gratis y sin compromiso.");chips(["Sí, quiero la comparación","¿Qué miro al comparar?"],false);};}
+ if(!key||nudged[key])return;idleT=setTimeout(()=>{if(busy||(typeof escuchando!=="undefined"&&escuchando))return;nudged[key]=1;fn();},ms);}
 async function decir(texto,ch,escalar){const partes=texto.split(/\n\n+/);for(let i=0;i<partes.length;i++){const t=typing();await sleep(Math.min(2200,500+partes[i].length*9));t.remove();bubble("a",partes[i]);}chips(ch,escalar);}
 async function enviar(e){e.preventDefault();lead=Object.fromEntries(new FormData($("f")).entries());
  $("hero").style.display="none";$("res").classList.add("on");window.scrollTo(0,0);$("wa").href="https://wa.me/"+WSP+"?text="+encodeURIComponent(waText());
- const r=NicoBot.start(lead);const c=NicoBot._state().p.clasif;
+ const r=NicoBot.start(lead);const c=NicoBot._state().p.clasif;notify("form");
  const tg={no_afiliable:"t-no",restringible:"t-res",evaluar:"t-ev",protegido:"t-pr",sin_impacto:"t-ok"}[c.nivel];
- $("dbg").innerHTML=`<b>Panel de prueba (no lo ve el usuario final)</b><br><span class="tag ${tg}">${c.nivel}</span>${c.hallazgos.map(h=>h.nombre).join(" · ")||"sin hallazgos"} — ${c.resumen}<br><span id="gen"></span>`;
- busy=true;$("st").textContent="escribiendo…";await decir(r.t,r.chips);$("st").textContent="en línea · asesor de IAsapre";busy=false;}
+ $("dbg").innerHTML=`<b>Panel de prueba (no lo ve el usuario final)</b><br><span class="tag ${tg}">${c.nivel}</span>${c.hallazgos.map(h=>h.nombre).join(" · ")||"sin hallazgos"} — ${c.resumen}<br><span id="gen"></span><br><b>Avisos enviados al equipo:</b> <span id="sentv">—</span>`;
+ busy=true;$("st").textContent="escribiendo…";await decir(r.t,r.chips);$("st").textContent="en línea · asesor de IAsapre";busy=false;paintDbg();idle();}
 async function motorExterno(q){if(!NETLIFY)return null;try{const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),12000);
  const r=await fetch("/.netlify/functions/chat",{method:"POST",signal:ctrl.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:[{role:"user",content:"Contexto: "+JSON.stringify(lead)+"\nPregunta: "+q+"\nResponde como Nico de IAsapre, breve y cercano. No uses la etiqueta [[CONTACTO]]."}]})});
  if(!r.ok)return null;const d=await r.json();return (d.text||"").replace(/\[\[CONTACTO\]\]/g,"").trim()||null;}catch(e){return null;}}
-async function send(){if(busy)return;const ta=$("q");const q=ta.value.trim();if(!q)return;ta.value="";clearChips();bubble("u",q);log.push(q);busy=true;$("send").disabled=true;$("st").textContent="escribiendo…";
+async function send(){if(busy)return;const ta=$("q");const q=ta.value.trim();if(!q)return;ta.value="";clearTimeout(idleT);clearChips();bubble("u",q);log.push(q);busy=true;$("send").disabled=true;$("st").textContent="escribiendo…";
  let r=NicoBot.reply(q);
  if(r.id==="no_entendi"){const ext=await motorExterno(q);if(ext)r={t:NicoBot.guard(ext),chips:r.chips,id:"motor"};}
+ try{const L0=NicoBot.lead();if(L0&&L0.comparacion&&!sent.has("wa_click")&&Array.isArray(r.chips)&&!r.chips.includes("Escribir por WhatsApp ahora"))r.chips=r.chips.filter(c=>c!=="Hablar con Nico").slice(0,3).concat(["Escribir por WhatsApp ahora"]);}catch(e){}
  await decir(r.t,r.chips,r.escalar);
  const g=$("gen");const L=NicoBot.lead&&NicoBot.lead();if(g)g.innerHTML=`<b>Última respuesta:</b> ${r.id}${r.conf?" ("+Number(r.conf).toFixed(1)+")":""}${L?` · <b>Lead:</b> ${L.tipo} · puntaje ${L.score}${L.comparacion?" · <b>comparación pedida ✅</b>":""}`:""}`;
- $("st").textContent="en línea · asesor de IAsapre";busy=false;$("send").disabled=false;ta.focus();}
+ $("st").textContent="en línea · asesor de IAsapre";busy=false;$("send").disabled=false;ta.focus();
+ try{$("wa").href="https://wa.me/"+WSP+"?text="+encodeURIComponent(waText());const LL=NicoBot.lead();(LL.eventos||[]).forEach(ev=>notify(ev));}catch(e){}paintDbg();idle();}
 /* ---- voz: dictado con Web Speech API (Chrome, Edge, Android, Safari iOS 14.5+) ---- */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null,escuchando=false,enviado=false;
 function tipVoz(msg){bubble("a",msg||"Tu navegador no me deja escucharte directo 🙈 Pero puedes tocar el micrófono de tu teclado (dictado) y hablarme igual: entiendo lo que me dices, aunque sea largo o desordenado.");}
+$("wa").addEventListener("click",()=>notify("wa_click"));
 $("mic").onclick=()=>{if(busy)return;if(!SR){tipVoz();return;}if(escuchando){rec.stop();return;}
  rec=new SR();rec.lang="es-CL";rec.interimResults=true;rec.continuous=false;rec.maxAlternatives=1;enviado=false;
  rec.onstart=()=>{escuchando=true;$("mic").classList.add("on");$("q").placeholder="Te escucho… cuéntame con calma";};
