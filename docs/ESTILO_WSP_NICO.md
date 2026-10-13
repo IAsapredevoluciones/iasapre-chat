@@ -31,12 +31,12 @@
 - **Seguimiento por silencio** (landing): "¿Sigues por ahí? Coméntame si te tinca que te deje armada la comparación…, o si lo vemos con calma más adelante" y "…Quedo atento!".
 - **Registro cercano**: "cuéntamelo nomás", "Obvio que no: a ti no te cobramos nada", "Perdona, no te cacho bien".
 - **Identidad corregida en la KB**: `saludo`, `gracias` y `asesor` decían "Soy Nico" / "te contacto yo"; ahora hablan como asistente y derivan a Nico.
+- **Usted con personas mayores** (decisión de Nico, 13‑oct‑2026): desde los **60 años** del formulario (`USTED_DESDE`) toda respuesta pasa por `ustedear()`: "Hola Jorge! ¿Cómo está? … Leí su formulario… ¿Le armamos la comparación?", "Cualquier duda me avisa", "Tenga a mano su carátula", "escríbanos". Es una transformación tú→usted sobre el vocabulario finito del bot (pronombres, posesivos, verbos en tú, imperativos, clíticos "cambiarte→cambiarse", "explicarte→explicarle", objeto directo con género por nombre "la rechacen"); la landing pasa sus mensajes por `NicoBot.tono()`. Test `tests/usted.js`: 792 respuestas sin restos de tú, cortafuegos y cifras limpios. **Si agregas una forma de tú nueva al motor, agrégala a `U_MAP`/`U_IMP`** (el test la detecta).
 
 ## 3. Qué NO se copió (a propósito)
 
-- **Sin tildes ni puntuación** (así escribe en WhatsApp): el bot mantiene ortografía correcta porque es un producto público y lo leen personas mayores.
+- **Sin tildes ni puntuación** (así escribe en WhatsApp): el bot mantiene ortografía correcta porque es un producto público y lo leen personas mayores (confirmado por Nico, 13‑oct‑2026).
 - **"jaja", "pls", "perfect", "reu"**: se evitan; quedan "buenísimo", "obvio", "te tinca", "nomás".
-- **Usted con personas mayores**: Nico lo hace; el bot tutea siempre. Cambiarlo implica reescribir ~120 textos con una variante por edad. Decisión pendiente de Nico.
 - **Pedir "algún horario para que hablemos"** como primer mensaje: el bot primero resuelve y recién después ofrece WhatsApp/Meet (regla "valor antes de pedir datos").
 
 ## 4. Reglas para escribir textos nuevos (checklist)
@@ -47,4 +47,4 @@
 4. Ofrecer comparar como "primer barrido", honesto ("tu plan puede ser tu mejor opción") y sin apuro ("lo vemos con calma").
 5. Cerrar dejando la puerta abierta ("cualquier duda me avisas", "quedo atento").
 6. Nunca firmar como Nico ni decir "te contacto yo"; Nico es quien atiende por WhatsApp o Meet.
-7. Correr `node tests/estilo.js` y `npm run test:quick`.
+7. Correr `node tests/estilo.js`, `node tests/usted.js` y `npm run test:quick`.

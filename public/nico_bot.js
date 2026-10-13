@@ -147,6 +147,36 @@ function humanizar(t,seed){let x=t;for(const [re,v] of SUAVE)x=x.replace(re,v);
  if(S){S.lastOpen=x.split(/[.!?]/)[0];}
  return x.split("\n\n").map(par=>{if(par.length<=320||/\n\d\)/.test(par))return par;const s=par.split(/(?<=[.!?])\s+/);let a="",b="";for(const z of s){if(a.length<par.length/2)a+=(a?" ":"")+z;else b+=(b?" ":"")+z;}return b?a+"\n\n"+b:a;}).join("\n\n");}
 
+
+/* ---------- trato de usted para personas mayores (como hace Nico en WhatsApp; docs/ESTILO_WSP_NICO.md) ----------
+ * Transformación tú→usted sobre el vocabulario finito del bot. Se aplica al final del pipeline (después de guard/humanizar). Test: tests/usted.js */
+const USTED_DESDE=60;
+const U_MAP={tu:"su",tus:"sus",tú:"usted",ti:"usted",contigo:"con usted",tuyo:"suyo",tuya:"suya",tuyos:"suyos",tuyas:"suyas",
+ tienes:"tiene",puedes:"puede",quieres:"quiere",pagas:"paga",usas:"usa",estás:"está",eres:"es",necesitas:"necesita",cotizas:"cotiza",declaras:"declara",firmas:"firma",llenas:"llena",sales:"sale",vas:"va",atiendes:"atiende",prefieres:"prefiere",llevas:"lleva",sigues:"sigue",decides:"decide",ocupas:"ocupa",sabes:"sabe",mandas:"manda",entras:"entra",trabajas:"trabaja",vienes:"viene",cambias:"cambia",desafilias:"desafilia",quedas:"queda",cobras:"cobra",acreditas:"acredita",aceptas:"acepta",autorizas:"autoriza",avisas:"avisa",buscas:"busca",confirmas:"confirma",conservas:"conserva",debes:"debe",escribes:"escribe",pides:"pide",pierdes:"pierde",presentas:"presenta",sumas:"suma",pegas:"pega",tenías:"tenía",serías:"sería",quedarías:"quedaría",ganas:"gana",vives:"vive",gastas:"gasta",crees:"cree",piensas:"piensa",dices:"dice",haces:"hace",ves:"ve",das:"da",recibes:"recibe",cumples:"cumple",dejas:"deja",tomas:"toma",pasas:"pasa",
+ actives:"active",cambies:"cambie",declares:"declare",dejes:"deje",estés:"esté",necesites:"necesite",omitas:"omita",pactes:"pacte",puedas:"pueda",quieras:"quiera",renuncies:"renuncie",tengas:"tenga",tomes:"tome",pierdas:"pierda",hagas:"haga",digas:"diga",firmes:"firme",vayas:"vaya",pases:"pase",sepas:"sepa",veas:"vea",
+ cumpliste:"cumplió",contaste:"contó",declaraste:"declaró",entraste:"entró",escribiste:"escribió",llegaste:"llegó",pagaste:"pagó",terminaste:"terminó",firmaste:"firmó",tuviste:"tuvo",dijiste:"dijo",hiciste:"hizo",fuiste:"fue",
+ dime:"dígame",cuéntame:"cuénteme",cuéntamelo:"cuéntemelo",pídele:"pídale",pídelo:"pídalo",pégalas:"péguelas",pégalo:"péguelo",mándalas:"mándelas",mándalos:"mándelos",mándala:"mándela",mándalo:"mándelo",avísame:"avíseme",escríbeme:"escríbame",escríbele:"escríbale",escríbenos:"escríbanos",ten:"tenga",piénsalo:"piénselo",actívala:"actívela",actívalo:"actívelo",afíliate:"afíliese",pregúntalo:"pregúntelo",pregúntame:"pregúnteme",déjame:"déjeme",confírmalo:"confírmelo",dile:"dígale",asegúrate:"asegúrese",muévete:"muévase",quédate:"quédese",revísalo:"revíselo",perdona:"perdone",envía:"envíe",envíame:"envíeme",envíalo:"envíelo",envíala:"envíela"};
+// imperativos que coinciden con la 3.ª persona: solo cuando no van precedidos de un sujeto/partícula
+const U_IMP={mira:"mire",exige:"exija",elige:"elija",vuelve:"vuelva",descarga:"descargue",anda:"vaya",reclama:"reclame",adjunta:"adjunte",pide:"pida",revisa:"revise",compara:"compare",activa:"active",usa:"use",declara:"declare",define:"defina",guarda:"guarde",manda:"mande",pega:"pegue",pregunta:"pregunte",avisa:"avise",confirma:"confirme",llama:"llame",cuida:"cuide",lleva:"lleve",toma:"tome",pasa:"pase",entrega:"entregue",pone:"ponga",pon:"ponga",haz:"haga",ve:"vaya",sal:"salga",di:"diga"};
+const U_PRE=/(?:\b(?:la|el|los|las|isapre|fonasa|que|qué|se|lo|le|les|me|te|nos|tope|clínica|quien|quién|no|ya|también|siempre|nueva|cual|cuál|sí|nadie|alguien|esto|eso|ella|él|cada|nunca|solo|sólo)\s+)$/i;
+const U_REFLEX=/^(cambi|afili|desafili|i|qued|arrepient|arrepent|atiend|atend|pas|hospitaliz|enferm|preocup|sient|sent|cuid|mejor|inscrib|estabiliz|mov|muev|asegur|compromet|jubil|pension|ir|v)/;
+const U_DIRECTO=/^(acept|rechac|rechaz|recib|tom|ech|saqu|sac|contact|llam|dej|proteg|amenaz|acompañ|atiend|oper|estabiliz|condicion|orient|deriv|cubr)/;
+function uCap(src,out){return /^[A-ZÁÉÍÓÚÑ]/.test(src)?out.charAt(0).toUpperCase()+out.slice(1):out;}
+function ustedear(t,nombre){if(!t)return t;const fem=/a$/i.test(String(nombre||"").trim().split(/\s+/)[0]||"");const lo=fem?"la":"lo";
+ let x=String(t);
+ // 1) "te lo/la…" → "se lo/la…"; "te" + verbo
+ const W="(?<![a-záéíóúñA-ZÁÉÍÓÚÑ])",E="(?![a-záéíóúñA-ZÁÉÍÓÚÑ])"; // \b no sirve con tildes
+ x=x.replace(new RegExp(W+"(te) (l[oa]s?)"+E,"gi"),(m,a,b)=>uCap(a,"se")+" "+b);
+ x=x.replace(new RegExp(W+"(te) (puede|pueden|podría|podrían|pueda|puedan|va a|van a|quiere|quieren|debe|deben|vuelve a|vuelven a|suele|suelen|tiene que|tienen que) ([a-záéíóúñ]+(?:ar|er|ir))"+E,"gi"),(m,a,aux,inf)=>(U_DIRECTO.test(inf.toLowerCase())&&!/^(cubr|deriv|orient)/.test(inf.toLowerCase())?uCap(a,lo):uCap(a,"le"))+" "+aux+" "+inf);
+ x=x.replace(new RegExp(W+"(te) ([a-záéíóúñ]+)"+E,"gi"),(m,a,v)=>{const vl=v.toLowerCase();if(U_MAP[vl]&&/(as|es|ás|és|aste|iste|ías)$/.test(vl))return uCap(a,"se")+" "+U_MAP[vl];if(U_DIRECTO.test(vl)&&!/^(cubr|deriv|orient)/.test(vl))return uCap(a,lo)+" "+v;return uCap(a,"le")+" "+v;});
+ // 2) clíticos pegados: cambiarte → cambiarse, explicarte → explicarle, explicártelo → explicárselo, aceptarte → aceptarlo
+ x=x.replace(new RegExp(W+"([a-záéíóúñ]+(?:ar|er|ir|ár|ér|ír))te(l[oa]s?)?"+E,"gi"),(m,v,o)=>{const s=v.toLowerCase().replace(/[áéí](r)$/,(q,r)=>({"á":"a","é":"e","í":"i"})[q[0]]+r);if(o)return v+"se"+o;if(U_REFLEX.test(s))return v+"se";if(U_DIRECTO.test(s))return v+lo;return v+"le";});
+ // 3) palabras sueltas (pronombres, verbos en tú, imperativos inequívocos)
+ x=x.replace(new RegExp(W+"([a-záéíóúñA-ZÁÉÍÓÚÑ]+)"+E,"g"),(w,_,pos)=>{const l=w.toLowerCase();if(U_MAP[l])return uCap(w,U_MAP[l]);if(U_IMP[l]){const pre=x.slice(Math.max(0,pos-24),pos);if(!U_PRE.test(pre))return uCap(w,U_IMP[l]);}return w;});
+ x=x.replace(/no le cacho bien/g,"no le entendí bien").replace(/Como tú sí puede/g,"Como usted sí puede");
+ return x;}
+function tono(t){return S&&S.p&&Number(S.p.edad)>=USTED_DESDE?ustedear(t,S.p.nombre):t;}
+
 /* ---------- perfil y cálculos ---------- */
 let S=null; // estado de la conversación
 const NUMW={un:1,uno:1,una:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12,quince:15,veinte:20,treinta:30,cuarenta:40,cincuenta:50,sesenta:60,setenta:70,ochenta:80,noventa:90,cien:100,ciento:100,doscientos:200,doscientas:200,trescientos:300,trescientas:300,cuatrocientos:400,cuatrocientas:400,quinientos:500,quinientas:500,seiscientos:600,seiscientas:600,setecientos:700,setecientas:700,ochocientos:800,ochocientas:800,novecientos:900,novecientas:900};
@@ -501,7 +531,7 @@ function reply(texto){texto=String(texto||"").replace(/\s+/g," ");
   let ch=r.chips||[];
   if(p.afiliable&&!S.comparacion&&!/comparar|que_mirar|cambio_isapre|gracias|escalar|saludo|ack|no$|menu|bot|reparar|fuera_tema|empatia|desambiguar/.test(id)&&S.turn%2===0&&!/compar/i.test(t)){t+=`\n\n👉 Con tu perfil, lo que más te puede servir es comparar tu plan con el de otras isapres: muchas veces hay uno igual o mejor por menos. ¿Te armo la comparación?`;S.pending="comparar";ch=["Sí, quiero la comparación"].concat(ch.filter(c=>!/compar/i.test(c))).slice(0,4);}
   if(S.comparacion&&id!=="comparar_si"){const t2=t.replace(/\s*¿(Te armo esa comparación|Te armamos la comparación|Comparamos(?: y lo vemos con tus datos)?|Lo vemos|Lo revisamos|Vemos los números|Partimos con la comparación|Te parece|Te tinca|Te la armamos|[^?]*compar[^?]*)\?\s*$/i,"").trim();if(t2!==t.trim())t=t2+" Como la comparación ya está pedida, cuando te lleguen las opciones las revisamos acá.";} // solo si la respuesta invitaba a comparar; "gracias" o "¿eres un bot?" no llevan la coletilla
-  return {t:cierre(humanizar(guard(t),S.turn+(p.nombre||"").length),id),chips:S.comparacion?ch.filter(c=>!/^Sí, quiero/.test(c)):ch,escalar:!!r.escalar,id,conf};};
+  return {t:tono(cierre(humanizar(guard(t),S.turn+(p.nombre||"").length),id)),chips:S.comparacion?ch.filter(c=>!/^Sí, quiero/.test(c)):ch,escalar:!!r.escalar,id,conf};};
  capturar(p,texto);
  if(BOT.test(q))return out({t:`Te soy honesto: soy el asistente virtual de IAsapre. Respondo al tiro con la información de tu caso y todo lo que te digo está basado en la normativa vigente. Si en algún momento prefieres que una persona del equipo lo revise, Nico te atiende por WhatsApp al ${WSP_H}. ¿En qué te ayudo?`,chips:sugerir(p)},"bot",1);
  if(INSULTO.test(q))return out({t:`Perdón si no te estoy ayudando como necesitas. Cuéntame en una frase qué pasó con tu isapre y lo vemos; o si prefieres, Nico te atiende directo por WhatsApp al ${WSP_H}.`,chips:sugerir(p).concat([])},"reparar",1);
@@ -525,7 +555,7 @@ function reply(texto){texto=String(texto||"").replace(/\s+/g," ");
  if(/^si,? quiero la comparacion$|^quiero la comparacion$|^comparar con otras isapres$/.test(q))return out(p.afiliable?D.comparar_si(p):D.bajar_costo(p,""),p.afiliable?"comparar_si":"bajar_costo",2);
  // 2) sí / no contextual
  if(SI.test(q)&&!GRACIAS.test(q)&&q.split(" ").length<=4&&S.pending){const pd=S.pending;const map={cuando:[D.comparar,"comparar"],familia:[D.familia_si,"familia_si"],comparar:[D.comparar_si,"comparar_si"],comparar_si:[D.comparar_si,"comparar_si"],objetivo:[p.enIsapre?D.bajar_costo:D.fonasa,p.enIsapre?"bajar_costo":"fonasa"],pasos_plan:[D.pasos_plan,"pasos_plan"],complementario:[D.complementario_fonasa,"complementario_fonasa"],caec:[D.deducible,"deducible"]};const f=map[pd];if(f)return out(f[0](p),f[1],1);}
- if(SI.test(q)&&!GRACIAS.test(q)&&q.split(" ").length<=4){S.miss=0;S.last="ack";return {t:"Buenísimo. ¿Con qué seguimos? Elige una opción o escríbeme tu duda con tus palabras.",chips:sugerir(p),id:"ack",conf:1};}
+ if(SI.test(q)&&!GRACIAS.test(q)&&q.split(" ").length<=4){S.miss=0;S.last="ack";return {t:tono("Buenísimo. ¿Con qué seguimos? Elige una opción o escríbeme tu duda con tus palabras."),chips:sugerir(p),id:"ack",conf:1};}
  if(/^(no tengo cargas|sin cargas|ninguna carga|no,? ninguna|solo yo,? sin cargas)/.test(q)){p.cargas=0;S.need=null;S.preguntado=true;const r=D.comparar(p);return out({t:(S.comparacion?"Perfecto, solo tú. ":"Perfecto, solo tú. ")+r.t,chips:r.chips},p.afiliable?"comparar":"bajar_costo",1);}
  if(NO.test(q)&&q.split(" ").length<=3&&S.need!=="cargas"){S.pending=null;return out({t:"Perfecto. ¿Hay algo más que te preocupe de tu plan o de tu salud previsional? Te respondo acá mismo.",chips:p.enIsapre?["Bajar lo que pago","Qué me cubre para mi tratamiento","Hablar con Nico"]:["Qué me cubre el GES","¿Cuánto pago en Fonasa?"]},"no",1);}
  const resto=q.replace(/\bg\w{0,2}acias\b|muchas|gra+c?i?as|grax|grasias|graci|nico|te pasaste|vale|genial|buenisimo|excelente|grande|ok|ya|bacan|hola/g,"").trim();
@@ -555,13 +585,13 @@ function reply(texto){texto=String(texto||"").replace(/\s+/g," ");
  if(OFF.test(q))return out({t:`Eso se me escapa 😅 Yo te ayudo con isapres, Fonasa, coberturas, GES, licencias y reclamos. ¿Hay algo de tu plan que quieras revisar?`,chips:sugerir(p)},"fuera_tema",0);
  if(pre)return out({t:`¿Me cuentas qué pasó? Por ejemplo: te rechazaron algo, te subieron el plan, una cuenta grande o una licencia.`,chips:p.afiliable?["Un rechazo de cobertura","El alza de mi plan","Comparar con otras isapres"]:["Un rechazo de cobertura","El alza de mi plan","Lo que me cubre para mi tratamiento"]},"empatia",0);
  S.miss++;
- if(S.miss>=2){S.miss=0;return {t:`Para no hacerte perder tiempo con esa pregunta, mejor la ve Nico en persona: escríbele al WhatsApp ${WSP_H} y te responde. Mientras, también puedo ayudarte con estas:`,chips:sugerir(p),escalar:true,id:"escalar_auto",conf:0};}
- return {t:pick([`Creo que no te entendí bien. ¿Me lo dices de otra forma, aunque sea con pocas palabras? Por ejemplo: "pagar menos", "me rechazaron algo" o "me subieron el plan".`,`Perdona, no te cacho bien. ¿Es sobre el precio de tu plan, sobre algo que no te cubrieron, o sobre otra cosa?`],S.turn),chips:sugerir(p),id:"no_entendi",conf:0};
+ if(S.miss>=2){S.miss=0;return {t:tono(`Para no hacerte perder tiempo con esa pregunta, mejor la ve Nico en persona: escríbele al WhatsApp ${WSP_H} y te responde. Mientras, también puedo ayudarte con estas:`),chips:sugerir(p),escalar:true,id:"escalar_auto",conf:0};}
+ return {t:tono(pick([`Creo que no te entendí bien. ¿Me lo dices de otra forma, aunque sea con pocas palabras? Por ejemplo: "pagar menos", "me rechazaron algo" o "me subieron el plan".`,`Perdona, no te cacho bien. ¿Es sobre el precio de tu plan, sobre algo que no te cubrieron, o sobre otra cosa?`],S.turn)),chips:sugerir(p),id:"no_entendi",conf:0};
 }
 function sugerir(p,last){if(p&&!p.afiliable)return (p.enIsapre?["Bajar lo que pago","Qué me cubre para mi tratamiento","Cómo reclamo el alza","¿Necesito un ejecutivo?"]:["Qué me cubre el GES","¿Cuánto pago en Fonasa?","Fonasa + seguro complementario","¿Necesito un ejecutivo?"]).filter(c=>!S||!S.topics.has(c));if(p&&p.afiliable)return ["Comparar con otras isapres","¿Qué miro al comparar?","Me subieron el plan","Hablar con Nico"].filter(c=>!S||!S.topics.has(c));const base=p.enIsapre?["Bajar lo que pago","Qué me cubre para mi tratamiento","Cómo reclamo el alza","¿Me conviene Fonasa?"]:["Qué me cubre el GES","¿Cuánto pago en Fonasa?","Fonasa + seguro complementario"];
  return base.filter(c=>!S||!S.topics.has(c)).slice(0,3).concat(["Hablar con Nico"]);}
 
-const _start=start;function startG(lead){const r=_start(lead);return {t:humanizar(guard(r.t),(lead.nombre||"").length),chips:r.chips};}
+const _start=start;function startG(lead){const r=_start(lead);return {t:tono(humanizar(guard(r.t),(lead.nombre||"").length)),chips:r.chips};}
 function lead(){if(!S)return null;const p=S.p;let tipo=p.afiliable?(p.clasif.nivel==="restringible"?"conversión con restricción":"conversión"):"orientación";
  let score=0;if(p.afiliable){score+=40;if(p.renta>=1200000)score+=15;if(p.clinica)score+=10;if(p.pago&&siete(p)&&p.pago>siete(p))score+=15;if(S.comparacion)score+=20;if(S.escalo)score+=10;}
  else{score+=S.familia?25:5;if(S.comparacion)score+=15;if(S.escalo)score+=10;}
@@ -578,6 +608,6 @@ function waTexto(){if(!S)return "Hola, quiero revisar mi plan de isapre.";const 
  const bits=[isapreN(p)!=="tu isapre"?"estoy en "+isapreN(p):"",p.clinica?"me interesa "+p.clinica.n:"",p.renta?"renta aprox. "+fmt(p.renta):"",p.cargas?"cargas: "+p.cargas:""].filter(Boolean).join(", ");
  const base=L.comparacion?"Pedí una comparación de planes en el asistente de IAsapre":"Estuve conversando con el asistente de IAsapre";
  return "Hola, soy "+(p.nombre||"un usuario")+". "+base+(bits?" ("+bits+")":"")+". "+((L.escalo||!p.afiliable)?"Me gustaría hablar con una persona.":"¿Me pueden ayudar a avanzar?");}
-root.NicoBot={handoff,waTexto,setUF,uf:()=>UF,UF_DEFAULT,_dbg:(txt)=>{const q=norm(txt).replace(FILL," ").replace(/\s+/g," ").trim();return INT.map(it=>[it.id,+(score(q,it.k)*(it.w||1)+concept(q,it.id)).toFixed(2)]).filter(x=>x[1]!==0).sort((a,b)=>b[1]-a[1]).slice(0,6);},start:startG,lead,hablado,reply,clasificar,perfil,guard,_state:()=>S,_data:{ISAPRES,CONDS,INT}};
+root.NicoBot={handoff,waTexto,setUF,uf:()=>UF,UF_DEFAULT,tono,ustedear,USTED_DESDE,_dbg:(txt)=>{const q=norm(txt).replace(FILL," ").replace(/\s+/g," ").trim();return INT.map(it=>[it.id,+(score(q,it.k)*(it.w||1)+concept(q,it.id)).toFixed(2)]).filter(x=>x[1]!==0).sort((a,b)=>b[1]-a[1]).slice(0,6);},start:startG,lead,hablado,reply,clasificar,perfil,guard,_state:()=>S,_data:{ISAPRES,CONDS,INT}};
 })(typeof window!=="undefined"?window:globalThis);
 if(typeof module!=="undefined")module.exports=globalThis.NicoBot;

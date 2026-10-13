@@ -11,9 +11,9 @@
    - **Afiliables** (sin preexistencias o con restricción): personalizar y empujar, siempre con honestidad, a **comparar con otras isapres** (mejor cobertura/red o menor precio) y a pedir la comparación → ejecutivo.
    - **No afiliables**: **resolverlos con el bot** (~90 % sin derivar a Nico) explicando por qué cambiarse no aplica y qué sí pueden hacer (optimizar dentro de su isapre, Fonasa + complementario, GES/CAEC, reclamar alzas). Solo derivar si insisten; ofrecer comparar para un **familiar** que cotice por su cuenta. Así se cuida el tiempo de los ejecutivos.
 
-## 2. Estado actual (13-oct-2026) — v6.2
+## 2. Estado actual (13-oct-2026) — v6.3
 - Motor offline `public/nico_bot.js` (~115 KB) + base `public/kb_offline.js` (55 temas) + landing `public/orientador.html`.
-- **Batería: 21/21 en verde** (`npm test`). Simulación de 10.000 conversaciones ≈ 100 % comprensión. `npm run smoke` prueba producción (motor publicado) con los mismos barridos.
+- **Batería: 22/22 en verde** (`npm test`). Simulación de 10.000 conversaciones ≈ 100 % comprensión. `npm run smoke` prueba producción (motor publicado) con los mismos barridos.
 - **Sitio público https://iasapre.netlify.app/orientador sigue con v3** hasta que se haga `git push origin main` (los commits v6/v6.1 están en `main` local; esta máquina no tiene credenciales de GitHub). Verificar después con `npm run smoke`.
 - Pruebas manuales: artifact de Claude https://claude.ai/artifact/64UmdfC6HVw5dBhj32Fr8w (misma landing, todo inline).
 - Repo GitHub: `IAsapredevoluciones/iasapre-chat` (público) → Netlify sitio `iasapre` (deploy automático desde `main`).
@@ -41,12 +41,12 @@ netlify.toml               publish=public; functions; redirect catch‑all a un 
 4. **Privacidad:** nada de datos de salud en URLs (WhatsApp prellenado), en Discord ni en logs. El detalle de salud solo viaja al CRM (`LEADS_WEBHOOK`) cuando la persona **pide** comparación/persona (consentimiento explícito en el mensaje del bot). Formulario inicial: aviso mínimo sin salud.
 5. **No dar diagnósticos ni consejos médicos**; no prometer resultados ("te ahorras X") sin la comparación real. No inventar tiempos de respuesta del equipo (hoy dice "normalmente el mismo día hábil": **confirmar con Nico**).
 6. **Afiliables:** empujar a comparar sin presionar y siendo objetivo ("si tu plan es el mejor, te lo digo"). **No afiliables:** no empujar al cambio.
-7. **Estilo "poco IA" = el estilo de Nico en WhatsApp** (`docs/ESTILO_WSP_NICO.md`, test `estilo.js`): apertura "Hola! ¿Cómo estás?", nunca `¡`, tuteo chileno cercano ("te tinca", "nomás", "con calma", "buenísimo"), frases cortas, **una pregunta a la vez**, calificar con plan actual + cuánto pagas + clínica, ofrecer un "primer barrido" honesto ("tu plan puede ser tu mejor opción"), Meet para la letra chica, cerrar con "cualquier duda me avisas / quedo atento". Tolera errores de tipeo/jerga/audio.
+7. **Estilo "poco IA" = el estilo de Nico en WhatsApp** (`docs/ESTILO_WSP_NICO.md`, test `estilo.js`): apertura "Hola! ¿Cómo estás?", nunca `¡`, tuteo chileno cercano ("te tinca", "nomás", "con calma", "buenísimo"), frases cortas, **una pregunta a la vez**, calificar con plan actual + cuánto pagas + clínica, ofrecer un "primer barrido" honesto ("tu plan puede ser tu mejor opción"), Meet para la letra chica, cerrar con "cualquier duda me avisas / quedo atento". **Usted desde los 60 años** del formulario (`ustedear()`/`tono()`, test `usted.js`; toda forma de tú nueva va a `U_MAP`/`U_IMP`). Tolera errores de tipeo/jerga/audio.
 
 ## 5. Cómo funciona el motor (resumen; detalle en `docs/ARQUITECTURA.md`)
 `NicoBot.start(lead)` → perfil + clasificación + mensajes iniciales (burbujas). `NicoBot.reply(texto)` → pipeline:
 normalización (`norm`, TYPO, muletillas de audio `FILL`, números hablados `hablado()`) → `capturar()` (datos de pasada: isapre, clínica, montos) → atajos conversacionales (¿bot?, insulto, vago, emoción, fuera de tema) → respuestas contextuales sí/no según `S.pending`/`S.need` → **scoring de intenciones** `INT` (palabras clave difusas + Levenshtein + `concept()` con reglas de contexto) → desambiguación / multi‑pregunta → fallback `KB_OFF` → `no_entendi` (2 intentos y deriva) → `guard()` + `humanizar()`.
-Respuestas: `D.*` (dinámicas con datos del perfil), `EXT` (textos largos verificados), `KB_OFF` (offline). Exporta además `lead()`, `handoff()`, `waTexto()`, `guard()`, `hablado()`, `setUF()`/`uf()` (UF del día inyectada por la página; respaldo 41.000), `_dbg()` (puntajes de intención), `_state()`.
+Respuestas: `D.*` (dinámicas con datos del perfil), `EXT` (textos largos verificados), `KB_OFF` (offline). Exporta además `lead()`, `handoff()`, `waTexto()`, `guard()`, `hablado()`, `setUF()`/`uf()` (UF del día inyectada por la página; respaldo 41.000), `tono()`/`ustedear()` (usted desde `USTED_DESDE`=60), `_dbg()` (puntajes de intención), `_state()`.
 
 ## 6. Pruebas (`npm install && npm test`)
 `npm run test:quick` ≈ 10 s (sin simulaciones ni jsdom) para iterar; `npm run test:fast` ≈ 3 min (con simulaciones); `npm test` ≈ 6 min (todo). Ejecutar siempre completo antes de cada push. `npm run smoke` (red) valida el sitio publicado.
@@ -56,6 +56,7 @@ Respuestas: `D.*` (dinámicas con datos del perfil), `EXT` (textos largos verifi
 | blind*.js (1–5) | sets "a ciegas" escritos antes de ajustar (mide generalización) | ≥ 95 % |
 | uf.js, chat_guard.js | UF inyectable sin red en el motor; guard() en el servidor | pasan |
 | estilo.js | 155 respuestas: apertura, sin `¡`, cierres, registro chileno, CTA rotado, Meet, nunca "soy Nico" | pasa |
+| usted.js | 792 respuestas a mayores de 60 sin restos de tú; salud mental y cifras limpias; tuteo bajo 60 | pasa |
 | mh_sweep.js | 352 respuestas × perfiles de salud mental: 0 inconsistencias | 0 |
 | audit_sweep.js | ninguna respuesta contiene cifras/frases ya corregidas | 0 |
 | sim3.js / sim.js | miles de conversaciones sintéticas con typos, mayúsculas, muletillas, 1/3 "por voz" | ≥ 99 % / ≥ 98 % |
