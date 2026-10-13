@@ -14,7 +14,8 @@
     "serve": "npx --yes serve public -l 8888",
     "chat": "node tools/chat_cli.js",
     "dbg": "node tools/dbg.js",
-    "test:quick": "node tests/run_all.js --fast --nosim"
+    "test:quick": "node tests/run_all.js --fast --nosim",
+    "smoke": "node tests/remote_smoke.js"
   },
   "devDependencies": {
     "jsdom": "^24.1.3"

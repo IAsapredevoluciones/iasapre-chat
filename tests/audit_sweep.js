@@ -1,5 +1,5 @@
 // AUDITORÍA: ninguna respuesta puede contener cifras/afirmaciones corregidas o no respaldadas
-globalThis.KB_OFF=require("../public/kb_offline.js").KB_OFF;const B=require("../public/nico_bot.js");
+const P=process.env.NB_PUBLIC||require("path").join(__dirname,"..","public");globalThis.KB_OFF=require(P+"/kb_offline.js").KB_OFF;const B=require(P+"/nico_bot.js");
 const PROHIBIDO=[/87[.,]8 UF/,/25% del plan/,/mínimo 25%/i,/cobertura mínima del 25/i,/10 días hábiles para retractarte/,/\$539\.000/,/\$786\.940/,/decreto de actualización está detenido/i,/1 de cada 5/,/hasta fines de mayo/,/hasta 2037/,/antes del 30 de abril/,/entre 5 y 20 días/,/Cámara Chilena de la Construcción, el mismo grupo/,/12 meses en el sistema isapre/,/1° del mes siguiente/,/unas 27/,/Típicas: salud mental/];
 const MH=/(depresi|ansiedad|bipolar|tdah|salud mental)/i,BAD=/(restricci|restring|preexist|rechaz|18 meses)/i,OKN=/(no (se )?(la |lo )?declar|no pueden|ni restring|ni rechaz|no te pueden|no (es|son) preexistencia|no cuenta|ya no se puede restringir|no puede(n)? usarse|ley 21\.?331|no se pueden declarar)/i;
 const nn=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"");

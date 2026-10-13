@@ -1,5 +1,5 @@
 // Barrido: todas las combinaciones perfil × pregunta. Ninguna respuesta puede presentar salud mental como preexistencia/restricción.
-globalThis.KB_OFF=require("../public/kb_offline.js").KB_OFF;const B=require("../public/nico_bot.js");
+const P=process.env.NB_PUBLIC||require("path").join(__dirname,"..","public");globalThis.KB_OFF=require(P+"/kb_offline.js").KB_OFF;const B=require(P+"/nico_bot.js");
 const MH=/(depresi|ansiedad|bipolar|esquizofren|salud mental|psiquiatr|psicolog|tdah|autismo|anorexia|bulimia)/i, BAD=/(restricci|restring|preexist|rechaz|no (son |es )?afiliable|18 meses)/i, OK=/(no (se )?(la |lo |las |los )?declar|no pueden|ni restring|ni rechaz|no te pueden|no (es|son) preexistencia|no cuenta|ya no se puede restringir|no puede(n)? usarse|ley 21\.?331)/i;
 const nn=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const perfiles=["depresión","ansiedad generalizada con sertralina","trastorno bipolar","esquizofrenia","TDAH","depresión y diabetes","ansiedad e hipertensión","autismo (TEA)","bulimia hace 3 años","diabetes tipo 2",""];
