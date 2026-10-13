@@ -173,7 +173,7 @@ function ustedear(t,nombre){if(!t)return t;const fem=/a$/i.test(String(nombre||"
  x=x.replace(new RegExp(W+"([a-záéíóúñ]+(?:ar|er|ir|ár|ér|ír))te(l[oa]s?)?"+E,"gi"),(m,v,o)=>{const s=v.toLowerCase().replace(/[áéí](r)$/,(q,r)=>({"á":"a","é":"e","í":"i"})[q[0]]+r);if(o)return v+"se"+o;if(U_REFLEX.test(s))return v+"se";if(U_DIRECTO.test(s))return v+lo;return v+"le";});
  // 3) palabras sueltas (pronombres, verbos en tú, imperativos inequívocos)
  x=x.replace(new RegExp(W+"([a-záéíóúñA-ZÁÉÍÓÚÑ]+)"+E,"g"),(w,_,pos)=>{const l=w.toLowerCase();if(U_MAP[l])return uCap(w,U_MAP[l]);if(U_IMP[l]){const pre=x.slice(Math.max(0,pos-24),pos);if(!U_PRE.test(pre))return uCap(w,U_IMP[l]);}return w;});
- x=x.replace(/no le cacho bien/g,"no le entendí bien").replace(/Como tú sí puede/g,"Como usted sí puede");
+ x=x.replace(/Como tú sí puede/g,"Como usted sí puede");
  return x;}
 function tono(t){return S&&S.p&&Number(S.p.edad)>=USTED_DESDE?ustedear(t,S.p.nombre):t;}
 
@@ -586,7 +586,7 @@ function reply(texto){texto=String(texto||"").replace(/\s+/g," ");
  if(pre)return out({t:`¿Me cuentas qué pasó? Por ejemplo: te rechazaron algo, te subieron el plan, una cuenta grande o una licencia.`,chips:p.afiliable?["Un rechazo de cobertura","El alza de mi plan","Comparar con otras isapres"]:["Un rechazo de cobertura","El alza de mi plan","Lo que me cubre para mi tratamiento"]},"empatia",0);
  S.miss++;
  if(S.miss>=2){S.miss=0;return {t:tono(`Para no hacerte perder tiempo con esa pregunta, mejor la ve Nico en persona: escríbele al WhatsApp ${WSP_H} y te responde. Mientras, también puedo ayudarte con estas:`),chips:sugerir(p),escalar:true,id:"escalar_auto",conf:0};}
- return {t:tono(pick([`Creo que no te entendí bien. ¿Me lo dices de otra forma, aunque sea con pocas palabras? Por ejemplo: "pagar menos", "me rechazaron algo" o "me subieron el plan".`,`Perdona, no te cacho bien. ¿Es sobre el precio de tu plan, sobre algo que no te cubrieron, o sobre otra cosa?`],S.turn)),chips:sugerir(p),id:"no_entendi",conf:0};
+ return {t:tono(pick([`Creo que no te entendí bien. ¿Me lo dices de otra forma, aunque sea con pocas palabras? Por ejemplo: "pagar menos", "me rechazaron algo" o "me subieron el plan".`,`Perdona, no me quedó claro. ¿Es sobre el precio de tu plan, sobre algo que no te cubrieron, o sobre otra cosa?`],S.turn)),chips:sugerir(p),id:"no_entendi",conf:0};
 }
 function sugerir(p,last){if(p&&!p.afiliable)return (p.enIsapre?["Bajar lo que pago","Qué me cubre para mi tratamiento","Cómo reclamo el alza","¿Necesito un ejecutivo?"]:["Qué me cubre el GES","¿Cuánto pago en Fonasa?","Fonasa + seguro complementario","¿Necesito un ejecutivo?"]).filter(c=>!S||!S.topics.has(c));if(p&&p.afiliable)return ["Comparar con otras isapres","¿Qué miro al comparar?","Me subieron el plan","Hablar con Nico"].filter(c=>!S||!S.topics.has(c));const base=p.enIsapre?["Bajar lo que pago","Qué me cubre para mi tratamiento","Cómo reclamo el alza","¿Me conviene Fonasa?"]:["Qué me cubre el GES","¿Cuánto pago en Fonasa?","Fonasa + seguro complementario"];
  return base.filter(c=>!S||!S.topics.has(c)).slice(0,3).concat(["Hablar con Nico"]);}

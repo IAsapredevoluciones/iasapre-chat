@@ -26,4 +26,5 @@ ok(pushes.every(t=>/compar/i.test(t)),"la invitación a comparar aparece en el s
 const cmp=(byId["comparar_si"]||[]).join("\n");ok(/escríbenos ahora por WhatsApp/.test(cmp)&&/Meet/.test(cmp)&&/calendly\.com\/nico-iasapre/.test(cmp),"al pedir comparación: WhatsApp + opción de reunión por Meet (Calendly)");
 ok((byId["comparar"]||[]).some(t=>/(te consulto|primer barrido|sigue siendo tu mejor opción)/.test(t)),"califica como Nico: 'te consulto…', 'primer barrido', 'si tu plan sigue siendo tu mejor opción te lo decimos'");
 ok(!all.some(t=>/🙌|👋|😊|🎉/.test(t)),"sin emojis decorativos (Nico casi no usa)");
+ok(!all.some(t=>/\bcach(o|ar|as|ai)\b|no rentable/i.test(t)),"nunca 'cacho' ni 'no rentable' (regla del canal WhatsApp)");
 console.log(fails.length?"FALLAS:\n - "+fails.join("\n - "):`Estilo OK: ${all.length} respuestas revisadas (${P.length} perfiles × ${Q.length} preguntas) con el estilo de Nico`);process.exit(fails.length?1:0);

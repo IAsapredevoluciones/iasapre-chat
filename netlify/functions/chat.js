@@ -2,7 +2,7 @@
  * Netlify Function: chat — sin dependencias (usa fetch nativo de Node 18+)
  * POST { messages:[{role,content}...] } -> { text, escalate }
  */
-const SYSTEM_PROMPT = require("./lib/prompt.js");
+const SYSTEM_PROMPT = require("./lib/prompt.js").WEB;
 const { guard } = require("../../public/nico_bot.js"); // mismo cortafuegos de salud mental que usa el cliente (esbuild lo empaqueta)
 const MODEL = "claude-sonnet-4-6";
 const cors = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Methods":"POST, OPTIONS","Access-Control-Allow-Headers":"Content-Type"};

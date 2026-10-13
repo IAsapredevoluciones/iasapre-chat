@@ -29,6 +29,6 @@ const joven=B.start({...base,nombre:"Camila",edad:"34"});ok(/¿Cómo estás\?/.t
 const sinEdad=B.start({...base,nombre:"Camila"});ok(/¿Cómo estás\?/.test(sinEdad.t),"sin edad → tuteo");
 ok(/NicoBot\.tono\(/.test(fs.readFileSync(path.join(__dirname,"..","public","orientador.html"),"utf8")),"la landing pasa sus mensajes de re-enganche por NicoBot.tono()");
 ok(B.USTED_DESDE===60,"umbral 60 años");
-const u=B.ustedear("Como tú sí puedes cambiarte. Nadie te puede sacar. Te van a aceptar. Cambiarte de plan no exige nueva declaración. Envía un reclamo y reclama. Perdona, no te cacho bien. Anda comentándome.","Rosa");
+const u=B.ustedear("Como tú sí puedes cambiarte. Nadie te puede sacar. Te van a aceptar. Cambiarte de plan no exige nueva declaración. Envía un reclamo y reclama. Perdona, no te entendí bien. Anda comentándome.","Rosa");
 ok(u==="Como usted sí puede cambiarse. Nadie la puede sacar. La van a aceptar. Cambiarse de plan no exige nueva declaración. Envíe un reclamo y reclame. Perdone, no le entendí bien. Vaya comentándome.","ustedear(): tú con tilde, auxiliar + objeto directo, 3.ª persona intacta, imperativos → "+u);
 console.log(fails.length?"FALLAS:\n - "+fails.join("\n - "):`Usted OK: ${n} respuestas en usted sin restos de tú (${P.length} perfiles mayores × ${Q.length+KBQ.length} preguntas); salud mental y cifras limpias; tuteo bajo 60`);process.exit(fails.length?1:0);

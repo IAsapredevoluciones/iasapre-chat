@@ -11,9 +11,9 @@
    - **Afiliables** (sin preexistencias o con restricción): personalizar y empujar, siempre con honestidad, a **comparar con otras isapres** (mejor cobertura/red o menor precio) y a pedir la comparación → ejecutivo.
    - **No afiliables**: **resolverlos con el bot** (~90 % sin derivar a Nico) explicando por qué cambiarse no aplica y qué sí pueden hacer (optimizar dentro de su isapre, Fonasa + complementario, GES/CAEC, reclamar alzas). Solo derivar si insisten; ofrecer comparar para un **familiar** que cotice por su cuenta. Así se cuida el tiempo de los ejecutivos.
 
-## 2. Estado actual (13-oct-2026) — v6.3
+## 2. Estado actual (13-oct-2026) — v6.4
 - Motor offline `public/nico_bot.js` (~115 KB) + base `public/kb_offline.js` (55 temas) + landing `public/orientador.html`.
-- **Batería: 22/22 en verde** (`npm test`). Simulación de 10.000 conversaciones ≈ 100 % comprensión. `npm run smoke` prueba producción (motor publicado) con los mismos barridos.
+- **Batería: 23/23 en verde** (`npm test`). Simulación de 10.000 conversaciones ≈ 100 % comprensión. `npm run smoke` prueba producción (motor publicado) con los mismos barridos.
 - **Sitio público https://iasapre.netlify.app/orientador sigue con v3** hasta que se haga `git push origin main` (los commits v6/v6.1 están en `main` local; esta máquina no tiene credenciales de GitHub). Verificar después con `npm run smoke`.
 - Pruebas manuales: artifact de Claude https://claude.ai/artifact/64UmdfC6HVw5dBhj32Fr8w (misma landing, todo inline).
 - Repo GitHub: `IAsapredevoluciones/iasapre-chat` (público) → Netlify sitio `iasapre` (deploy automático desde `main`).
@@ -27,10 +27,11 @@ public/                    ← lo que sirve Netlify (publish = "public")
 netlify/functions/
   chat.js                  fallback opcional a Claude API (necesita ANTHROPIC_API_KEY); usa lib/prompt.js
   contact.js               recibe leads (stage form|comparacion|escalar|wa_click) → LEADS_WEBHOOK / ZAPIER_WEBHOOK / DISCORD_WEBHOOK
-  lib/prompt.js            base de conocimiento (18 secciones) para chat.js — AUDITADA, ver docs/FUENTES_VERIFICADAS.md
+  lib/prompt.js            exporta {WEB, KB}: KB = base de conocimiento (18 secciones) AUDITADA (docs/FUENTES_VERIFICADAS.md); WEB = KB + instrucciones del chat web
+  lib/prompt_whatsapp.js   canal WhatsApp (docs/CANAL_WHATSAPP.md): rol + KB, parseAsignacion() (solo desde +56 9 8883 0767), formatDerivacion() (a +56 9 8538 0357)
 modules/orientador/        módulo SEPARADO, NO desplegado: orientar.js (POST /api/orientar) para integrar el formulario de iasapre.cl
 tests/                     batería (ver §6) · remote_smoke.js = humo contra producción (npm run smoke)
-docs/                      ARQUITECTURA, FUENTES_VERIFICADAS, DECISIONES_Y_REGLAS, PENDIENTES, GUIA_DEPLOY, CHANGELOG, PROMPT_INICIAL, ESTILO_WSP_NICO (voz del bot)
+docs/                      ARQUITECTURA, FUENTES_VERIFICADAS, DECISIONES_Y_REGLAS, PENDIENTES, GUIA_DEPLOY, CHANGELOG, PROMPT_INICIAL, ESTILO_WSP_NICO (voz del bot), CANAL_WHATSAPP (rol del asistente en WhatsApp)
 netlify.toml               publish=public; functions; redirect catch‑all a un sitio estático antiguo (force=false → los archivos locales ganan)
 ```
 
@@ -57,6 +58,7 @@ Respuestas: `D.*` (dinámicas con datos del perfil), `EXT` (textos largos verifi
 | uf.js, chat_guard.js | UF inyectable sin red en el motor; guard() en el servidor | pasan |
 | estilo.js | 155 respuestas: apertura, sin `¡`, cierres, registro chileno, CTA rotado, Meet, nunca "soy Nico" | pasa |
 | usted.js | 792 respuestas a mayores de 60 sin restos de tú; salud mental y cifras limpias; tuteo bajo 60 | pasa |
+| whatsapp.js | prompt del canal WhatsApp (reglas clave, sin cifras prohibidas), asignaciones solo del número válido, inyección ignorada, derivación | pasa |
 | mh_sweep.js | 352 respuestas × perfiles de salud mental: 0 inconsistencias | 0 |
 | audit_sweep.js | ninguna respuesta contiene cifras/frases ya corregidas | 0 |
 | sim3.js / sim.js | miles de conversaciones sintéticas con typos, mayúsculas, muletillas, 1/3 "por voz" | ≥ 99 % / ≥ 98 % |

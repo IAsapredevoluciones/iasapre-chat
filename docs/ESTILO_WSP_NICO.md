@@ -29,7 +29,7 @@
 - **Meet para la letra chica**: al pedir la comparación y al escalar se ofrece reunión corta por Meet (calendly.com/nico-iasapre/30min) además del WhatsApp.
 - **Cierres** (`CIERRE`, cuando la respuesta no termina en pregunta): "Cualquier duda me avisas.", "Anda comentándome cualquier duda.", "Quedo atento a lo que necesites.", "Avísame si te queda alguna duda."
 - **Seguimiento por silencio** (landing): "¿Sigues por ahí? Coméntame si te tinca que te deje armada la comparación…, o si lo vemos con calma más adelante" y "…Quedo atento!".
-- **Registro cercano**: "cuéntamelo nomás", "Obvio que no: a ti no te cobramos nada", "Perdona, no te cacho bien".
+- **Registro cercano**: "cuéntamelo nomás", "Obvio que no: a ti no te cobramos nada". (Sin "cacho": prohibido en todos los canales desde el rol de WhatsApp.)
 - **Identidad corregida en la KB**: `saludo`, `gracias` y `asesor` decían "Soy Nico" / "te contacto yo"; ahora hablan como asistente y derivan a Nico.
 - **Usted con personas mayores** (decisión de Nico, 13‑oct‑2026): desde los **60 años** del formulario (`USTED_DESDE`) toda respuesta pasa por `ustedear()`: "Hola Jorge! ¿Cómo está? … Leí su formulario… ¿Le armamos la comparación?", "Cualquier duda me avisa", "Tenga a mano su carátula", "escríbanos". Es una transformación tú→usted sobre el vocabulario finito del bot (pronombres, posesivos, verbos en tú, imperativos, clíticos "cambiarte→cambiarse", "explicarte→explicarle", objeto directo con género por nombre "la rechacen"); la landing pasa sus mensajes por `NicoBot.tono()`. Test `tests/usted.js`: 792 respuestas sin restos de tú, cortafuegos y cifras limpios. **Si agregas una forma de tú nueva al motor, agrégala a `U_MAP`/`U_IMP`** (el test la detecta).
 

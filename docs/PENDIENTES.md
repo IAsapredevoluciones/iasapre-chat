@@ -8,6 +8,9 @@
 
 **Decisiones de estilo resueltas por Nico (13‑oct‑2026):** usted desde los 60 años ✅ implementado (`usted.js`); ortografía con tildes se mantiene ✅; Calendly `calendly.com/nico-iasapre/30min` vigente ✅.
 
+## P0b — Canal WhatsApp (rol definido 13‑oct‑2026, `docs/CANAL_WHATSAPP.md`)
+- Prompt y helpers listos en `netlify/functions/lib/prompt_whatsapp.js`. **Falta decidir dónde corre**: (a) plataforma no‑code con LLM (se pega `SYSTEM`), o (b) webhook propio (Meta Cloud API / Twilio) en Netlify usando Claude + `guard()` + `parseAsignacion()` + `formatDerivacion()`. Confirmar que +56 9 8883 0767 es el número que emite asignaciones desde app.iasapre.cl.
+
 ## P1 — próximas 2 semanas
 5. **Conectar el formulario de iasapre.cl** al flujo (opciones: iframe/enlace a `/orientador`, o `modules/orientador/netlify/functions/orientar.js`). Cuidar nombres de lib (hay `lib/prompt.js` en dos lugares → renombrar el del módulo).
 6. **app.iasapre.cl** (Rafa): nuevo estado "Lead de orientación", botón "Abrir WhatsApp", guardar `resumen` y `nota_interna`.
