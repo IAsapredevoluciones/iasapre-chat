@@ -99,6 +99,19 @@ const txt = (t) => ({ stop_reason: "end_turn", content: [{ type: "text", text: t
   ok(Mw.mem.get("56988880000").nombrePerfil === "Lucía", "nombre del perfil guardado");
   p = await Hw({ httpMethod: "POST", headers: { "x-hub-signature-256": firma }, body: Buffer.from(raw).toString("base64"), isBase64Encoded: true }); ok(p.statusCode === 200, "cuerpo en base64 también se verifica");
   ok(api.parsearWebhook(evento).length === 2 && api.parsearWebhook({}).length === 0, "parsearWebhook");
+  // 10b) eventos dirigidos a OTRO número de la misma cuenta (p. ej. el WhatsApp de devoluciones) se ignoran sin responder
+  process.env.WSP_PHONE_NUMBER_ID = "111222333";
+  const otro = JSON.parse(JSON.stringify(evento)); otro.entry[0].changes[0].value.metadata = { phone_number_id: "999888777", display_phone_number: "56985380357" };
+  const rawO = JSON.stringify(otro), firmaO = "sha256=" + crypto.createHmac("sha256", "secreto-de-prueba").update(rawO).digest("hex");
+  const Mo = mocks([txt("no debería llegar")]); const Ho = A.crearHandler(Mo.deps);
+  p = await Ho({ httpMethod: "POST", headers: { "x-hub-signature-256": firmaO }, body: rawO });
+  ok(p.statusCode === 200 && Mo.enviados.length === 0 && Mo.llamadas.length === 0, "mensajes para otro número (devoluciones) se ignoran: no se responde ni se llama al modelo");
+  const mio = JSON.parse(JSON.stringify(evento)); mio.entry[0].changes[0].value.metadata = { phone_number_id: "111222333" };
+  const rawM = JSON.stringify(mio), firmaM = "sha256=" + crypto.createHmac("sha256", "secreto-de-prueba").update(rawM).digest("hex");
+  const Mm = mocks([txt("Hola Lucía!")]); const Hm = A.crearHandler(Mm.deps);
+  p = await Hm({ httpMethod: "POST", headers: { "x-hub-signature-256": firmaM }, body: rawM });
+  ok(p.statusCode === 200 && Mm.enviados.length === 1, "mensajes para el número del asistente sí se responden");
+  delete process.env.WSP_PHONE_NUMBER_ID;
   ok(api.verificarFirma(raw, firma, "secreto-de-prueba") && !api.verificarFirma(raw, firma, "otro") && !api.verificarFirma(raw, "", "secreto-de-prueba"), "verificarFirma");
   // 11) notificador: Discord sin salud; CRM con resumen; WhatsApp al especialista
   const posts = []; const fetchReal = global.fetch; global.fetch = async (u, o) => { posts.push({ u, body: JSON.parse(o.body) }); return { ok: true, json: async () => ({}) }; };

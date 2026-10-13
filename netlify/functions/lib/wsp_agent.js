@@ -183,6 +183,8 @@ function crearHandler(depsOverride) {
       notificarEspecialista: crearNotificador(wsp, env), plantillaInicio: env.WSP_TEMPLATE_INICIO || "" }, depsOverride || {});
     const resultados = [];
     for (const m of wsp.parsearWebhook(body)) {
+      // Solo el número del asistente: si el evento viene para otro número de la misma cuenta (p. ej. el WhatsApp de devoluciones), se ignora sin responder.
+      if (env.WSP_PHONE_NUMBER_ID && m.phoneNumberId && m.phoneNumberId !== env.WSP_PHONE_NUMBER_ID) { resultados.push({ tipo: "ignorado", motivo: "otro número" }); continue; }
       if (!m.texto) { resultados.push({ tipo: "ignorado", motivo: "sin texto (" + m.tipo + ")" }); continue; }
       try { if (m.messageId && !depsOverride) wsp.marcarLeido(m.messageId).catch(() => {}); } catch (e) {}
       try { resultados.push(await manejarEntrante(m, deps)); } catch (e) { console.error("whatsapp handler", e && e.message); resultados.push({ tipo: "error" }); }

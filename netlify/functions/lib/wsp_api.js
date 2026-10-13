@@ -52,13 +52,14 @@ function parsearWebhook(body) {
   try {
     for (const entry of (body && body.entry) || []) for (const ch of entry.changes || []) {
       const v = ch.value || {}; if (ch.field && ch.field !== "messages") continue;
+      const phoneNumberId = (v.metadata && v.metadata.phone_number_id) || "";
       const nombres = {}; for (const c of v.contacts || []) if (c.wa_id) nombres[c.wa_id] = (c.profile && c.profile.name) || "";
       for (const m of v.messages || []) {
         let texto = "";
         if (m.type === "text") texto = (m.text && m.text.body) || "";
         else if (m.type === "button") texto = (m.button && m.button.text) || "";
         else if (m.type === "interactive") texto = (m.interactive && ((m.interactive.button_reply && m.interactive.button_reply.title) || (m.interactive.list_reply && m.interactive.list_reply.title))) || "";
-        out.push({ from: digitos(m.from), nombre: nombres[m.from] || "", texto, messageId: m.id, tipo: m.type, timestamp: m.timestamp });
+        out.push({ from: digitos(m.from), nombre: nombres[m.from] || "", texto, messageId: m.id, tipo: m.type, timestamp: m.timestamp, phoneNumberId });
       }
     }
   } catch (e) {}
