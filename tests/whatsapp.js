@@ -38,4 +38,8 @@ ok(d.startsWith("🔔 Derivación IAsapre\nLead: María José Pérez · +56 9 90
 for(const k of ["Previsión actual: Colmena","Edad / cargas: 41","Renta imponible: $1.850.000","Región / clínica: RM","Qué busca: bajar","Lo conversado: Le expliqué","Motivo de derivación: pide cotización","Urgencia: Alta"])ok(d.includes(k),"derivación incluye: "+k);
 ok(/Preexistencias: hipertensión, asma/.test(d)&&!/depresi/.test(d),"la salud mental no viaja en el resumen: "+(d.match(/Preexistencias: .*/)||[""])[0]);
 const d2=W.formatDerivacion({nombre:"Pedro",telefono:"+56 9 5555 5555",preexistencias:"ansiedad"});ok(/Preexistencias: No\n/.test(d2)&&/Urgencia: Media\n?$/.test(d2)&&/sin ID de lead/.test(d2),"valores por defecto (sin preexistencias registrables, urgencia media, sin lead)");
+// no afiliables: regla explícita en el rol y lista + cambio interno en la KB
+for(const k of ["NO AFILIABLES","comparar con otras Isapres NO aplica","cambio de plan interno","Fonasa + seguro complementario","olvido oncológico","un amigo, un familiar"])ok(W.ROL.includes(k),"rol no afiliables incluye: "+k);
+ok(!/difícilmente serán aceptadas/.test(W.ROL),"el rol ya no usa 'difícilmente' para no afiliables");
+for(const k of ["diabetes","cáncer con menos de 5 años desde el alta","cirugía bariátrica","VIH","trasplante","insuficiencia renal","autoinmune con tratamiento","NO AFILIABLES","Cambio de plan DENTRO de la misma Isapre","NO exige nueva Declaración de Salud","primer día del mes subsiguiente"])ok(W.KB.includes(k),"KB WhatsApp incluye: "+k);
 console.log(fails.length?"FALLAS:\n - "+fails.join("\n - "):"WhatsApp OK: prompt con reglas y KB auditada, asignaciones solo del número válido, inyección ignorada, derivación sin salud mental");process.exit(fails.length?1:0);
