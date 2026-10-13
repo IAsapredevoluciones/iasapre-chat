@@ -48,6 +48,10 @@ function contexto(conv) {
     `Renta imponible (formulario): ${L.renta || "No informado"}`, `Región (formulario): ${L.region || "No informado"}`,
     `Clínica de preferencia (formulario): ${L.clinica || "No informado"}`, `Cargas familiares (formulario): ${L.cargas || "No informado"}`,
     `Preferencia de contacto (formulario): ${L.contacto || "Sin definir"}`,
+    ...(L.edad ? [`Edad (formulario): ${L.edad}`] : []), ...(L.isapre ? [`Isapre o previsión actual (formulario): ${L.isapre}`] : []), ...(L.comuna ? [`Comuna (formulario): ${L.comuna}`] : []),
+    ...(L.preexistencias ? [`Preexistencias declaradas en el formulario: ${L.preexistencias} (si alguna está en la lista de NO AFILIABLES, aplica esa regla desde el primer mensaje: no ofrezcas comparar; orienta a cambio de plan interno o Fonasa)`] : []),
+    ...(L.tipo ? [`Tipo de lead según la plataforma: ${L.tipo}`] : []), ...(L.resumen ? [`Resumen del formulario: ${L.resumen}`] : []),
+    "Usa estos datos del formulario sin volver a preguntarlos; solo confírmalos en una frase si hace falta.",
     `Estado: ${conv.derivado ? "YA DERIVADA a un especialista el " + conv.derivadoEn + " (sección 3.4: recuérdale que le escribirán desde " + NUMEROS.especialista + " y responde solo dudas simples)" : "en asesoría (no derivada)"}`,
     `Fecha y hora (Chile): ${new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" })}`,
   ];

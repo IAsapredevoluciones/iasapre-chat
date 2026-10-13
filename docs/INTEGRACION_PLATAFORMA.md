@@ -24,6 +24,8 @@ Opción A, campos sueltos (recomendada):
   "contacto": "WhatsApp"
 }
 ```
+Campos opcionales que el bot aprovecha para no repreguntar (mandar los que existan): `"edad"`, `"isapre"` (Isapre/previsión actual), `"comuna"`, `"preexistencias"` (detalle del formulario), `"tipo"` ("Orientación" / "Afiliable"), `"resumen"` (el "Resumen original del formulario" completo).
+
 `nombre` y `telefono` son obligatorios; el resto, si no existe, mandar `"No informado"` o omitir. El teléfono acepta cualquier formato (se quedan solo los dígitos; debe incluir 56 9…).
 
 Opción B, el mismo texto que hoy se manda por WhatsApp:

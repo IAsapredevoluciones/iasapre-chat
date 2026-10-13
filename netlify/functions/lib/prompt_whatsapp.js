@@ -121,6 +121,9 @@ function parseAsignacion(texto, desde) {
     nombre, telefono: wa ? fmtCL(wa[1]) : null, leadId: lead ? lead[1] : null,
     renta: campo(/Renta imponible:\s*(.+)/i), region: campo(/Regi[oó]n:\s*(.+)/i), clinica: campo(/Cl[ií]nica de preferencia:\s*(.+)/i),
     cargas: campo(/Cargas familiares:\s*(.+)/i), contacto: campo(/Preferencia de contacto:\s*(.+)/i),
+    // opcionales (exportación de la plataforma / endpoint asignar): se usan para no volver a preguntar lo que ya se sabe
+    edad: campo(/^Edad:\s*(.+)/im), isapre: campo(/Isapre(?: \/ Previsi[oó]n)? actual:\s*(.+)/i), comuna: campo(/^Comuna:\s*(.+)/im),
+    preexistencias: campo(/^Preexistencias:\s*(.+)/im), tipo: campo(/^Tipo de lead:\s*(.+)/im), resumen: campo(/^Resumen del formulario:\s*(.+)/im),
     plataforma: lead ? "https://app.iasapre.cl/?lead=" + lead[1] : "", prefill,
   };
 }

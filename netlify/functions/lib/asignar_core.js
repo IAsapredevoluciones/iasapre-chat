@@ -3,7 +3,7 @@
 // porque dos números de la API de WhatsApp no pueden escribirse entre sí). Protegida con el secreto ASIGNAR_SECRET.
 // POST /.netlify/functions/asignar  · header: Authorization: Bearer <ASIGNAR_SECRET>
 // body JSON: { "texto": "<asignación con el formato de la sección 1.2>" }  o bien
-//            { "nombre", "telefono", "leadId", "renta", "region", "clinica", "cargas", "contacto" }
+//            { "nombre", "telefono", "leadId", "renta", "region", "clinica", "cargas", "contacto", +opcionales "edad", "isapre", "comuna", "preexistencias", "tipo", "resumen" }
 //            o { "reiniciar": "<teléfono>" } para borrar la conversación guardada de ese número (pruebas).
 // Responde 200 {ok, tipo, accion, enviado}. La lógica es la misma que para una asignación recibida por WhatsApp (lib/wsp_agent.js).
 const { NUMEROS } = require("./prompt_whatsapp.js");
@@ -17,6 +17,9 @@ function textoAsignacion(d) {
   return ["Hola Asesoría IAsapre, tienes un nuevo lead asignado para gestión.", String(d.nombre || "Sin nombre").trim(),
     `Renta imponible: ${d.renta || "No informado"}`, `Región: ${d.region || "No informado"}`, `Clínica de preferencia: ${d.clinica || "No informado"}`,
     `Cargas familiares: ${d.cargas || "No informado"}`, `Preferencia de contacto: ${d.contacto || "Sin definir"}`,
+    ...(d.edad ? [`Edad: ${d.edad}`] : []), ...(d.isapre ? [`Isapre actual: ${d.isapre}`] : []), ...(d.comuna ? [`Comuna: ${d.comuna}`] : []),
+    ...(d.preexistencias ? [`Preexistencias: ${String(d.preexistencias).replace(/\s+/g, " ")}`] : []), ...(d.tipo ? [`Tipo de lead: ${d.tipo}`] : []),
+    ...(d.resumen ? [`Resumen del formulario: ${String(d.resumen).replace(/\s+/g, " ").slice(0, 1500)}`] : []),
     `💬 Contacto rápido: https://wa.me/${tel}?text=${encodeURIComponent("Hola " + String(d.nombre || "").split(" ")[0])}`,
     `📋 Gestión en la plataforma: https://app.iasapre.cl/?lead=${d.leadId || ""}`].join("\n");
 }
