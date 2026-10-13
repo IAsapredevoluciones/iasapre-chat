@@ -7,11 +7,11 @@
 const KB_OFF = [
 // --- conversación básica ---
 {id:"saludo", k:["hola","buenas","buenos dias","buenas tardes","que tal","hey"], pri:0.6,
- r:"Hola {n} 👋 Soy Nico de IAsapre. Pregúntame lo que quieras de tu isapre o Fonasa: topes, preexistencias, GES, CAEC, licencias, reclamos, cambio de plan. ¿Por dónde partimos?"},
+ r:"Hola {n}! ¿Cómo estás? Soy el asistente de IAsapre. Pregúntame lo que quieras de tu isapre o Fonasa: topes, preexistencias, GES, CAEC, licencias, reclamos, cambio de plan. ¿Por dónde partimos?"},
 {id:"gracias", k:["gracias","muchas gracias","te pasaste","genial","perfecto","excelente"], pri:0.6,
- r:"De nada, {n}. Si quieres que revisemos tu carátula con calma, escríbeme al WhatsApp {wsp} y lo vemos juntos, gratis. ¿Algo más que te preocupe?"},
+ r:"De nada, {n}. Si quieres que revisemos tu carátula con calma, escríbele a Nico al WhatsApp {wsp} y lo ven juntos, gratis. ¿Algo más que te preocupe?"},
 {id:"asesor", k:["hablar con alguien","asesor","ejecutivo","persona real","humano","me contacten","llamame","llamarme","contactarme","quiero que me llamen","hablar contigo","una persona"],
- r:"Claro. Escríbeme directo al WhatsApp {wsp} (soy Nico) o déjame tus datos con el botón verde de arriba y te contacto yo. Si me mandas una foto de tu carátula, te digo en la misma conversación qué plan te rinde más. Es gratis y sin compromiso."},
+ r:"Claro. Escríbele a Nico directo al WhatsApp {wsp} o usa el botón verde de arriba: el mensaje va con un resumen de tu caso. Si le mandas una foto de tu carátula, te dice en la misma conversación qué plan te rinde más. Es gratis y sin compromiso."},
 {id:"que_es_iasapre", k:["que es iasapre","quienes son","que hacen ustedes","como funciona iasapre","son una isapre","venden planes","cobran","cuanto cuesta la asesoria","es gratis"],
  r:"IAsapre no es una isapre ni vende planes: comparamos todas las isapres y Fonasa y te decimos la verdad de tu caso, gratis. Si existe algo mejor que lo que tienes, te lo mostramos y solo con tu OK te conectamos con un agente. Si no, te decimos cómo sacarle más a tu plan actual. Nunca te cobramos."},
 {id:"datos_privacidad", k:["mis datos","privacidad","van a vender mis datos","spam","me van a llamar todo el dia","confidencial"],

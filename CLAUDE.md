@@ -11,9 +11,9 @@
    - **Afiliables** (sin preexistencias o con restricción): personalizar y empujar, siempre con honestidad, a **comparar con otras isapres** (mejor cobertura/red o menor precio) y a pedir la comparación → ejecutivo.
    - **No afiliables**: **resolverlos con el bot** (~90 % sin derivar a Nico) explicando por qué cambiarse no aplica y qué sí pueden hacer (optimizar dentro de su isapre, Fonasa + complementario, GES/CAEC, reclamar alzas). Solo derivar si insisten; ofrecer comparar para un **familiar** que cotice por su cuenta. Así se cuida el tiempo de los ejecutivos.
 
-## 2. Estado actual (12-oct-2026) — v6.1
+## 2. Estado actual (13-oct-2026) — v6.2
 - Motor offline `public/nico_bot.js` (~115 KB) + base `public/kb_offline.js` (55 temas) + landing `public/orientador.html`.
-- **Batería: 20/20 en verde** (`npm test`). Simulación de 10.000 conversaciones ≈ 100 % comprensión. `npm run smoke` prueba producción (motor publicado) con los mismos barridos.
+- **Batería: 21/21 en verde** (`npm test`). Simulación de 10.000 conversaciones ≈ 100 % comprensión. `npm run smoke` prueba producción (motor publicado) con los mismos barridos.
 - **Sitio público https://iasapre.netlify.app/orientador sigue con v3** hasta que se haga `git push origin main` (los commits v6/v6.1 están en `main` local; esta máquina no tiene credenciales de GitHub). Verificar después con `npm run smoke`.
 - Pruebas manuales: artifact de Claude https://claude.ai/artifact/64UmdfC6HVw5dBhj32Fr8w (misma landing, todo inline).
 - Repo GitHub: `IAsapredevoluciones/iasapre-chat` (público) → Netlify sitio `iasapre` (deploy automático desde `main`).
@@ -30,7 +30,7 @@ netlify/functions/
   lib/prompt.js            base de conocimiento (18 secciones) para chat.js — AUDITADA, ver docs/FUENTES_VERIFICADAS.md
 modules/orientador/        módulo SEPARADO, NO desplegado: orientar.js (POST /api/orientar) para integrar el formulario de iasapre.cl
 tests/                     batería (ver §6) · remote_smoke.js = humo contra producción (npm run smoke)
-docs/                      ARQUITECTURA, FUENTES_VERIFICADAS, DECISIONES_Y_REGLAS, PENDIENTES, GUIA_DEPLOY, CHANGELOG, PROMPT_INICIAL
+docs/                      ARQUITECTURA, FUENTES_VERIFICADAS, DECISIONES_Y_REGLAS, PENDIENTES, GUIA_DEPLOY, CHANGELOG, PROMPT_INICIAL, ESTILO_WSP_NICO (voz del bot)
 netlify.toml               publish=public; functions; redirect catch‑all a un sitio estático antiguo (force=false → los archivos locales ganan)
 ```
 
@@ -41,7 +41,7 @@ netlify.toml               publish=public; functions; redirect catch‑all a un 
 4. **Privacidad:** nada de datos de salud en URLs (WhatsApp prellenado), en Discord ni en logs. El detalle de salud solo viaja al CRM (`LEADS_WEBHOOK`) cuando la persona **pide** comparación/persona (consentimiento explícito en el mensaje del bot). Formulario inicial: aviso mínimo sin salud.
 5. **No dar diagnósticos ni consejos médicos**; no prometer resultados ("te ahorras X") sin la comparación real. No inventar tiempos de respuesta del equipo (hoy dice "normalmente el mismo día hábil": **confirmar con Nico**).
 6. **Afiliables:** empujar a comparar sin presionar y siendo objetivo ("si tu plan es el mejor, te lo digo"). **No afiliables:** no empujar al cambio.
-7. **Estilo "poco IA":** tuteo chileno cercano, frases cortas, **una pregunta a la vez**, sin exclamaciones en cadena, variación de aperturas (`humanizar()`), tolera errores de tipeo/jerga/audio.
+7. **Estilo "poco IA" = el estilo de Nico en WhatsApp** (`docs/ESTILO_WSP_NICO.md`, test `estilo.js`): apertura "Hola! ¿Cómo estás?", nunca `¡`, tuteo chileno cercano ("te tinca", "nomás", "con calma", "buenísimo"), frases cortas, **una pregunta a la vez**, calificar con plan actual + cuánto pagas + clínica, ofrecer un "primer barrido" honesto ("tu plan puede ser tu mejor opción"), Meet para la letra chica, cerrar con "cualquier duda me avisas / quedo atento". Tolera errores de tipeo/jerga/audio.
 
 ## 5. Cómo funciona el motor (resumen; detalle en `docs/ARQUITECTURA.md`)
 `NicoBot.start(lead)` → perfil + clasificación + mensajes iniciales (burbujas). `NicoBot.reply(texto)` → pipeline:
@@ -55,6 +55,7 @@ Respuestas: `D.*` (dinámicas con datos del perfil), `EXT` (textos largos verifi
 | holdout*.js, holdout_conv.js | casos escritos aparte, regresión | 100 % |
 | blind*.js (1–5) | sets "a ciegas" escritos antes de ajustar (mide generalización) | ≥ 95 % |
 | uf.js, chat_guard.js | UF inyectable sin red en el motor; guard() en el servidor | pasan |
+| estilo.js | 155 respuestas: apertura, sin `¡`, cierres, registro chileno, CTA rotado, Meet, nunca "soy Nico" | pasa |
 | mh_sweep.js | 352 respuestas × perfiles de salud mental: 0 inconsistencias | 0 |
 | audit_sweep.js | ninguna respuesta contiene cifras/frases ya corregidas | 0 |
 | sim3.js / sim.js | miles de conversaciones sintéticas con typos, mayúsculas, muletillas, 1/3 "por voz" | ≥ 99 % / ≥ 98 % |

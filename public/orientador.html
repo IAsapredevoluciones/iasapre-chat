@@ -122,8 +122,8 @@ function paintDbg(){const g=$("gen");if(g&&!g.dataset.base)g.dataset.base=g.inne
 /* ---- re-enganche si se queda en silencio (una sola vez por tipo) ---- */
 const IDLE=window.__IDLE||{wa:40000,cmp:75000};let idleT=null;const nudged={};
 function idle(){clearTimeout(idleT);let L=null;try{L=NicoBot.lead();}catch(e){}if(!L)return;let key=null,ms=0,fn=null;
- if(L.comparacion&&!sent.has("wa_click")){key="wa";ms=IDLE.wa;fn=()=>{bubble("a","Si quieres que te respondan más rápido, escríbenos ahora por WhatsApp: el mensaje va con tu resumen y no tienes que repetir nada.");chips(["Escribir por WhatsApp ahora"],false);};}
- else if(!L.comparacion&&(L.tier==="tibio"||L.tier==="tibio_alto")){key="cmp";ms=IDLE.cmp;fn=()=>{bubble("a","¿Sigues por ahí? Si quieres, te dejo armada la comparación con las otras isapres: es gratis y sin compromiso.");chips(["Sí, quiero la comparación","¿Qué miro al comparar?"],false);};}
+ if(L.comparacion&&!sent.has("wa_click")){key="wa";ms=IDLE.wa;fn=()=>{bubble("a","Si quieres que te respondan más rápido, escríbenos ahora por WhatsApp: el mensaje va con tu resumen y no tienes que repetir nada. Quedo atento!");chips(["Escribir por WhatsApp ahora"],false);};}
+ else if(!L.comparacion&&(L.tier==="tibio"||L.tier==="tibio_alto")){key="cmp";ms=IDLE.cmp;fn=()=>{bubble("a","¿Sigues por ahí? Coméntame si te tinca que te deje armada la comparación con las otras isapres, o si lo vemos con calma más adelante. Es gratis y sin compromiso.");chips(["Sí, quiero la comparación","¿Qué miro al comparar?"],false);};}
  if(!key||nudged[key])return;idleT=setTimeout(()=>{if(busy||(typeof escuchando!=="undefined"&&escuchando))return;nudged[key]=1;fn();},ms);}
 async function decir(texto,ch,escalar){const partes=texto.split(/\n\n+/);for(let i=0;i<partes.length;i++){const t=typing();await sleep(Math.min(2200,500+partes[i].length*9));t.remove();bubble("a",partes[i]);}chips(ch,escalar);}
 async function enviar(e){e.preventDefault();lead=Object.fromEntries(new FormData($("f")).entries());await Promise.race([ufReady,sleep(1500)]);

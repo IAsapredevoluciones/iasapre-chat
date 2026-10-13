@@ -6,6 +6,8 @@
 3. **Responsable de respuesta < 5 min** a leads `caliente` (humano, definir con Nico) y ajustar el texto "normalmente el mismo día hábil".
 4. ✅ **Ocultar el panel de depuración** en producción (solo con `?debug=1`; test `ui_debug.js`).
 
+**Decisiones de estilo pendientes de Nico** (ver `docs/ESTILO_WSP_NICO.md` §3): (a) ¿usted para mayores de ~60 como haces tú en WhatsApp? (implica una variante por edad en ~120 textos); (b) ¿mantener ortografía con tildes aunque tú escribas sin ellas? (hoy sí); (c) confirmar que el link de Calendly `calendly.com/nico-iasapre/30min` sigue vigente, porque el bot ahora lo ofrece al pedir comparación y al escalar.
+
 ## P1 — próximas 2 semanas
 5. **Conectar el formulario de iasapre.cl** al flujo (opciones: iframe/enlace a `/orientador`, o `modules/orientador/netlify/functions/orientar.js`). Cuidar nombres de lib (hay `lib/prompt.js` en dos lugares → renombrar el del módulo).
 6. **app.iasapre.cl** (Rafa): nuevo estado "Lead de orientación", botón "Abrir WhatsApp", guardar `resumen` y `nota_interna`.
