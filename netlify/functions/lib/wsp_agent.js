@@ -131,7 +131,8 @@ async function manejarEntrante(msg, deps) {
   // 2) Conversación con una persona
   const conv = (await deps.store.get(from)) || nuevaConv(from, msg.nombre);
   if (!conv.nombrePerfil && msg.nombre) conv.nombrePerfil = msg.nombre;
-  conv.historial.push({ role: "user", content: texto, t: Date.now() });
+  if (msg.messageId && conv.historial.some((h) => h.id === msg.messageId)) return { tipo: "ignorado", motivo: "duplicado" }; // reintento de Meta
+  conv.historial.push({ role: "user", content: texto, t: Date.now(), id: msg.messageId || undefined });
   let resp = null, error = null;
   try { resp = await deps.claude(cuerpoClaude(conv)); } catch (e) { error = e; }
   let { texto: salida, derivar: pedido, rechazo } = leerRespuesta(resp);
@@ -148,15 +149,25 @@ async function manejarEntrante(msg, deps) {
   return { tipo: "conversacion", telefono: from, derivado: !!derivacion, enviado: !!(r && r.ok), error: error ? String(error.message) : null };
 }
 
-/** Avisos al especialista: WhatsApp (plantilla si existe; si no, texto libre dentro de la ventana de 24 h) + webhooks ya existentes.
+/** Avisos al especialista: WhatsApp + webhooks ya existentes. Por WhatsApp primero va el resumen completo como texto
+ *  (funciona si el especialista le escribió al asistente en las últimas 24 h); si rebota (ventana cerrada), la plantilla
+ *  aprobada WSP_TEMPLATE_DERIVACION (nombre, teléfono, urgencia, link). Cada fallo se registra sin datos personales.
  *  Discord NUNCA recibe el detalle (datos de salud): solo nombre, teléfono, urgencia y link. */
 function crearNotificador(wsp, env) {
   env = env || process.env;
+  async function porWhatsApp(esp, resumen, meta) {
+    let r = await wsp.enviarTexto(esp, resumen);
+    if (r && r.ok) return r;
+    console.error("derivación: texto al especialista rebotó", r && r.status, r && r.error);
+    if (!env.WSP_TEMPLATE_DERIVACION) return r || { ok: false };
+    r = await wsp.enviarPlantilla(esp, env.WSP_TEMPLATE_DERIVACION, [meta.nombre || "Sin nombre", fmtCL(meta.telefono) || meta.telefono || "", meta.urgencia || "Media", meta.leadId ? "https://app.iasapre.cl/?lead=" + meta.leadId : "sin ID"]);
+    if (!(r && r.ok)) console.error("derivación: plantilla al especialista rebotó", r && r.status, r && r.error);
+    return r || { ok: false };
+  }
   return async function notificarEspecialista(resumen, meta) {
     const posts = [];
     const esp = digitos(env.WSP_ESPECIALISTA || NUMEROS.especialista);
-    if (env.WSP_TEMPLATE_DERIVACION) posts.push(wsp.enviarPlantilla(esp, env.WSP_TEMPLATE_DERIVACION, [meta.nombre || "Sin nombre", fmtCL(meta.telefono) || meta.telefono || "", meta.urgencia || "Media", meta.leadId ? "https://app.iasapre.cl/?lead=" + meta.leadId : "sin ID"]));
-    else posts.push(wsp.enviarTexto(esp, resumen));
+    posts.push(porWhatsApp(esp, resumen, meta));
     for (const k of ["LEADS_WEBHOOK", "ZAPIER_WEBHOOK"]) if (env[k]) posts.push(fetch(env[k], { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage: "derivacion_wsp", source: "whatsapp", name: meta.nombre || "", phone: meta.telefono || "", lead_id: meta.leadId || "", urgencia: meta.urgencia || "Media", resumen, timestamp: new Date().toISOString() }) }).catch(() => {}));
     if (env.DISCORD_WEBHOOK) posts.push(fetch(env.DISCORD_WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: `🔔 **Derivación WhatsApp** · urgencia ${meta.urgencia || "Media"}\n**${meta.nombre || "Sin nombre"}** · ${fmtCL(meta.telefono) || meta.telefono || ""}${meta.leadId ? "\nhttps://app.iasapre.cl/?lead=" + meta.leadId : ""}\n(El resumen completo llegó por WhatsApp al especialista y al CRM)` }) }).catch(() => {}));
     const rs = await Promise.allSettled(posts);
@@ -179,6 +190,7 @@ function crearHandler(depsOverride) {
     }
     let body = {}; try { body = JSON.parse(raw || "{}"); } catch (e) { return { statusCode: 400, body: "JSON inválido" }; }
     store.conectar(event);
+    for (const f of wsp.estadosFallidos(body)) console.error("whatsapp estado failed", f.code, f.title); // sin teléfonos
     const deps = Object.assign({ store: { get: store.getConv, set: store.setConv }, enviarTexto: wsp.enviarTexto, enviarPlantilla: wsp.enviarPlantilla, claude: claudeHTTP,
       notificarEspecialista: crearNotificador(wsp, env), plantillaInicio: env.WSP_TEMPLATE_INICIO || "" }, depsOverride || {});
     const resultados = [];

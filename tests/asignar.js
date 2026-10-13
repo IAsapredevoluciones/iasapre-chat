@@ -1,6 +1,6 @@
 // Endpoint HTTP de asignaciones (netlify/functions/asignar.js): secreto obligatorio, acepta texto o campos, misma lógica que una asignación por WhatsApp.
 process.env.ASIGNAR_SECRET = "secreto-asignar";
-const F = require("../netlify/functions/asignar.js");
+const F = require("../netlify/functions/lib/asignar_core.js");
 const fails = []; const ok = (c, m) => { if (!c) fails.push(m); };
 function mocks() { const mem = new Map(), enviados = [], plantillas = []; return { mem, enviados, plantillas, deps: { store: { get: async (k) => mem.get(k) || null, set: async (k, v) => { mem.set(k, v); } },
   enviarTexto: async (to, body) => { enviados.push({ to, body }); return { ok: true }; }, enviarPlantilla: async (to, nombre, params) => { plantillas.push({ to, nombre, params }); return { ok: true }; },

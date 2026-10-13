@@ -66,4 +66,14 @@ function parsearWebhook(body) {
   return out;
 }
 
-module.exports = { enviarTexto, enviarPlantilla, marcarLeido, verificarFirma, verificarWebhook, parsearWebhook, cfg, digitos };
+/** Estados de entrega con error (p. ej. plantilla no aprobada, ventana de 24 h cerrada): [{code, title}] sin datos personales. */
+function estadosFallidos(body) {
+  const out = [];
+  try {
+    for (const entry of (body && body.entry) || []) for (const ch of entry.changes || []) for (const st of (ch.value && ch.value.statuses) || [])
+      if (st.status === "failed") for (const e of st.errors || [{}]) out.push({ code: e.code, title: e.title || (e.error_data && e.error_data.details) || "" });
+  } catch (e) {}
+  return out;
+}
+
+module.exports = { enviarTexto, enviarPlantilla, marcarLeido, verificarFirma, verificarWebhook, parsearWebhook, estadosFallidos, cfg, digitos };

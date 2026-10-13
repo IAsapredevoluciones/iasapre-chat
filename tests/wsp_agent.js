@@ -125,6 +125,16 @@ const txt = (t) => ({ stop_reason: "end_turn", content: [{ type: "text", text: t
   ok(disc && !/diabetes/.test(JSON.stringify(disc.body)) && /Ana/.test(disc.body.content) && /L-1/.test(disc.body.content), "Discord: sin datos de salud, con nombre, teléfono y link");
   ok(crm && crm.body.stage === "derivacion_wsp" && /diabetes/.test(crm.body.resumen), "CRM recibe el resumen completo");
   ok(wa && wa.u === "wsp:56985380357" && /🔔 Derivación IAsapre/.test(wa.body), "WhatsApp al especialista +56 9 8538 0357");
+  // 11b) si el texto rebota (ventana de 24 h cerrada) se usa la plantilla; si el texto llega, no se manda plantilla
+  const pl = []; const wspMock2 = { enviarTexto: async () => ({ ok: false, status: 400, error: "Re-engagement message" }), enviarPlantilla: async (to, nombre, params) => { pl.push({ to, nombre, params }); return { ok: true }; } };
+  const errReal = console.error; console.error = () => {};
+  const rs = await A.crearNotificador(wspMock2, { WSP_TEMPLATE_DERIVACION: "derivacion_iasapre" })(resumen, { nombre: "Ana", telefono: "56990000000", leadId: "L-1", urgencia: "Alta" });
+  console.error = errReal;
+  ok(rs[0] && rs[0].ok && pl.length === 1 && pl[0].to === "56985380357" && pl[0].nombre === "derivacion_iasapre" && pl[0].params.join("|") === "Ana|+56 9 9000 0000|Alta|https://app.iasapre.cl/?lead=L-1", "texto rebotado → plantilla con nombre, teléfono, urgencia y link");
+  const pl2 = []; await A.crearNotificador({ enviarTexto: async () => ({ ok: true }), enviarPlantilla: async (...a) => { pl2.push(a); return { ok: true }; } }, { WSP_TEMPLATE_DERIVACION: "derivacion_iasapre" })(resumen, { nombre: "Ana", telefono: "56990000000" });
+  ok(pl2.length === 0, "texto entregado → sin plantilla");
+  const ef = api.estadosFallidos({ entry: [{ changes: [{ value: { statuses: [{ id: "x", status: "failed", recipient_id: "569", errors: [{ code: 131047, title: "Re-engagement message" }] }, { id: "y", status: "delivered" }] } }] }] });
+  ok(ef.length === 1 && ef[0].code === 131047 && /Re-engagement/.test(ef[0].title) && !JSON.stringify(ef).includes("569"), "estadosFallidos: solo código y título");
   console.log(fails.length ? "FALLAS:\n - " + fails.join("\n - ") : "WhatsApp agente OK: asignación, reasignación, origen inválido, guard, derivación sin salud mental, refusal, errores, webhook (firma/verificación/parseo), avisos");
   process.exit(fails.length ? 1 : 0);
 })().catch((e) => { console.log("FALLAS:\n - excepción: " + (e && e.stack)); process.exit(1); });

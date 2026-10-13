@@ -60,6 +60,9 @@ Meta Cloud API ──POST──▶ netlify/functions/whatsapp.js  (GET = verific
 - Las variables nuevas en Netlify solo se aplican tras un **redeploy** (Deploys → Trigger deploy → Deploy project).
 - Suscripción de la WABA a la app: `GET /{WABA_ID}/subscribed_apps` con el Explorador de la API Graph debe listar la app.
 
+- **Funciones en formato moderno** (`export default async (req)` + `lib/moderno.js`): es lo que da a Netlify Blobs consistencia fuerte. En formato clásico las lecturas eran eventuales y, con mensajes seguidos, el bot perdía turnos y repreguntaba (isapre, cargas). Además `store.setConv` fusiona historiales (dos invocaciones en paralelo no se pisan) y el agente ignora reintentos de Meta con el mismo `messageId`.
+- **Aviso al especialista**: primero el resumen completo como texto (llega si +56 9 8538 0357 le escribió al asistente en las últimas 24 h; mientras la plantilla no esté aprobada, basta con que Nico le mande "ok" al asistente una vez al día); si rebota, la plantilla `derivacion_iasapre`. Los estados "failed" de Meta quedan en el log (código y título).
+
 **Límites a tener presentes**: tiempo máximo de una función Netlify (10 s por defecto; el agente responde en pocos segundos con effort `low`, pero si hay timeouts subir el plan o mover a función background); el número de pruebas de Meta tiene cuota de 250 conversaciones/día hasta verificar el negocio; Blobs está disponible con functions en cualquier plan.
 
 ## Ajustes respecto del texto original de Nico (pequeños, ninguno cambia el flujo)
