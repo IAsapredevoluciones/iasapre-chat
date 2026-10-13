@@ -47,3 +47,5 @@
 - [ ] Probar derivación real ("quiero hablar con una persona") y revisar el aviso en +56 9 8538 0357 (llega por plantilla cuando esté aprobada; mientras, por LEADS_WEBHOOK/Discord si se configuran).
 - [ ] Créditos de Claude Platform: reclamar los USD 200 del plan Max cada mes (Billing) o agregar tarjeta; límite de gasto mensual USD 500.
 - [ ] Audios: crear clave en https://platform.openai.com/api-keys (o Deepgram) y cargar `OPENAI_API_KEY` en Netlify + Trigger deploy; sin eso el bot pide el mensaje por escrito.
+- [ ] Panel: cargar `PANEL_SECRET` (contraseña que tú elijas) en Netlify + Trigger deploy; luego entrar a https://iasapre-chat.netlify.app/.netlify/functions/panel con usuario `iasapre`.
+- [ ] Rafa: las asignaciones por WhatsApp entre los dos números de la Cloud API no se entregan; usar el endpoint `asignar`.

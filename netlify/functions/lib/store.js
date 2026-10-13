@@ -55,6 +55,38 @@ async function delConv(telefono) {
   mem.delete(k); return true;
 }
 
+/** Lista todas las conversaciones (más recientes primero). Tope 300. */
+async function listarConvs() {
+  const s = tienda(); const out = [];
+  if (s) {
+    try {
+      const { blobs: items } = await s.list();
+      for (const b of (items || []).slice(0, 300)) { try { const v = await s.get(b.key, { type: "json" }); if (v) out.push(v); } catch (e) {} }
+    } catch (e) { console.error("blobs list", e && e.message); }
+  } else for (const v of mem.values()) out.push(v);
+  return out.sort((a, b) => String(b.actualizado || b.creado || "").localeCompare(String(a.actualizado || a.creado || "")));
+}
+
+// Registro de eventos del canal (para el panel): qué llegó, de quién y qué se hizo. Store "eventos", clave = fecha ISO + sufijo.
+const memEv = [];
+function tiendaEventos() { try { return blobs ? blobs.getStore(modoClasico ? { name: "eventos" } : { name: "eventos", consistency: "strong" }) : null; } catch (e) { return null; }
+}
+async function registrarEvento(ev) {
+  const e = { t: new Date().toISOString(), ...ev };
+  const s = tiendaEventos();
+  if (s) { try { await s.setJSON(e.t + "-" + Math.random().toString(36).slice(2, 7), e); return true; } catch (er) { console.error("blobs evento", er && er.message); } }
+  memEv.push(e); if (memEv.length > 500) memEv.shift(); return true;
+}
+/** Últimos n eventos (más recientes primero). */
+async function listarEventos(n) {
+  n = n || 100; const s = tiendaEventos(); let out = [];
+  if (s) {
+    try { const { blobs: items } = await s.list(); const keys = (items || []).map((b) => b.key).sort().reverse().slice(0, n);
+      for (const k of keys) { try { const v = await s.get(k, { type: "json" }); if (v) out.push(v); } catch (e) {} } } catch (e) { console.error("blobs eventos", e && e.message); }
+  } else out = memEv.slice(-n).reverse();
+  return out;
+}
+
 const memoria = { get: (k) => mem.get(String(k).replace(/\D/g, "")) || null, set: (k, v) => { mem.set(String(k).replace(/\D/g, ""), v); }, clear: () => mem.clear() };
 
-module.exports = { conectar, getConv, setConv, delConv, fusionar, memoria };
+module.exports = { conectar, getConv, setConv, delConv, listarConvs, registrarEvento, listarEventos, fusionar, memoria };

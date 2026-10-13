@@ -45,6 +45,7 @@ function crearHandler(depsOverride) {
     try {
       const r = await manejarEntrante({ from: NUMEROS.asignaciones, nombre: "Plataforma", texto }, deps);
       console.log("asignar", JSON.stringify({ tipo: r.tipo, accion: r.accion, enviado: r.enviado })); // sin datos personales
+      if (!depsOverride) { try { const st = require("./store.js"); await st.registrarEvento({ canal: "http", tipo: r.tipo, accion: r.accion, enviado: r.enviado, de: "app.iasapre.cl", lead: r.telefono }); } catch (e) {} }
       return json(r.tipo === "asignacion" ? 200 : 422, { ok: r.tipo === "asignacion", tipo: r.tipo, accion: r.accion, enviado: r.enviado });
     } catch (e) { console.error("asignar", e && e.message); return json(500, { error: "Error al procesar la asignación" }); }
   };

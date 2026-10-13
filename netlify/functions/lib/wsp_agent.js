@@ -219,6 +219,8 @@ function crearHandler(depsOverride) {
       }
       try { resultados.push(await manejarEntrante(m, deps)); } catch (e) { console.error("whatsapp handler", e && e.message); resultados.push({ tipo: "error" }); }
     }
+    if (!depsOverride || depsOverride.registrarEventos) for (let i = 0; i < resultados.length; i++) { const r = resultados[i], m = wsp.parsearWebhook(body)[i] || {};
+      try { await store.registrarEvento({ canal: "whatsapp", tipo: r.tipo, motivo: r.motivo, accion: r.accion, derivado: r.derivado, enviado: r.enviado, error: r.error, de: m.from, nombre: m.nombre, clase: m.tipo, lead: r.telefono && r.telefono !== m.from ? r.telefono : undefined }); } catch (e) {} }
     console.log("whatsapp", JSON.stringify(resultados.map((r) => ({ tipo: r.tipo, accion: r.accion, derivado: r.derivado, enviado: r.enviado, error: r.error, motivo: r.motivo })))); // sin teléfonos ni textos
     return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ok: true, n: resultados.length }) };
   };
