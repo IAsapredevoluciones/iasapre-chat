@@ -5,6 +5,7 @@
 const { KB } = require("./prompt.js");
 
 const NUMEROS = {
+  asistente: "+56 9 5373 0030",    // número nuevo del asistente (WhatsApp Business Cloud API)
   asignaciones: "+56 9 8883 0767", // único origen válido de asignaciones de leads (app.iasapre.cl)
   especialista: "+56 9 8538 0357", // especialista humano (Nico) que recibe derivaciones
 };

@@ -21,6 +21,7 @@ const T=[
  {f:"estilo.js",nm:"Estilo WhatsApp de Nico (apertura, cierres, registro chileno, identidad)",ok:o=>/Estilo OK/.test(o)},
  {f:"usted.js",nm:"Trato de usted a mayores de 60 (sin restos de tú, salud mental y cifras OK)",ok:o=>/Usted OK/.test(o)},
  {f:"whatsapp.js",nm:"Canal WhatsApp: prompt, asignaciones (origen válido, inyección) y derivación",ok:o=>/WhatsApp OK/.test(o)},
+ {f:"wsp_agent.js",nm:"Agente WhatsApp (webhook, Claude simulado, guard, derivación, avisos)",ok:o=>/WhatsApp agente OK/.test(o)},
  {f:"sim3.js",sim:1,a:["6000"],nm:"Simulación v3 (6.000 conv.)",ok:o=>num(/Comprensión: ([\d.]+)%/,o)>=99&&num(/salud mental: (\d+)/,o)===0&&num(/derivación no pedida: ([\d.]+)%/,o)===0},
  {f:"sim.js",sim:1,a:["4000"],nm:"Simulación v1 (4.000 conv.)",ok:o=>num(/Comprensión[^:]*: ([\d.]+)%/,o)>=98},
  {f:"ui_smoke.js",nm:"UI: burbujas iniciales (jsdom)",e2e:1,ok:o=>/Burbujas iniciales: \d+/.test(o)},

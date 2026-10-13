@@ -11,9 +11,9 @@
    - **Afiliables** (sin preexistencias o con restricción): personalizar y empujar, siempre con honestidad, a **comparar con otras isapres** (mejor cobertura/red o menor precio) y a pedir la comparación → ejecutivo.
    - **No afiliables**: **resolverlos con el bot** (~90 % sin derivar a Nico) explicando por qué cambiarse no aplica y qué sí pueden hacer (optimizar dentro de su isapre, Fonasa + complementario, GES/CAEC, reclamar alzas). Solo derivar si insisten; ofrecer comparar para un **familiar** que cotice por su cuenta. Así se cuida el tiempo de los ejecutivos.
 
-## 2. Estado actual (13-oct-2026) — v6.4
+## 2. Estado actual (13-oct-2026) — v6.5
 - Motor offline `public/nico_bot.js` (~115 KB) + base `public/kb_offline.js` (55 temas) + landing `public/orientador.html`.
-- **Batería: 23/23 en verde** (`npm test`). Simulación de 10.000 conversaciones ≈ 100 % comprensión. `npm run smoke` prueba producción (motor publicado) con los mismos barridos.
+- **Batería: 24/24 en verde** (`npm test`). Simulación de 10.000 conversaciones ≈ 100 % comprensión. `npm run smoke` prueba producción (motor publicado) con los mismos barridos.
 - **Sitio público https://iasapre.netlify.app/orientador sigue con v3** hasta que se haga `git push origin main` (los commits v6/v6.1 están en `main` local; esta máquina no tiene credenciales de GitHub). Verificar después con `npm run smoke`.
 - Pruebas manuales: artifact de Claude https://claude.ai/artifact/64UmdfC6HVw5dBhj32Fr8w (misma landing, todo inline).
 - Repo GitHub: `IAsapredevoluciones/iasapre-chat` (público) → Netlify sitio `iasapre` (deploy automático desde `main`).
@@ -28,7 +28,10 @@ netlify/functions/
   chat.js                  fallback opcional a Claude API (necesita ANTHROPIC_API_KEY); usa lib/prompt.js
   contact.js               recibe leads (stage form|comparacion|escalar|wa_click) → LEADS_WEBHOOK / ZAPIER_WEBHOOK / DISCORD_WEBHOOK
   lib/prompt.js            exporta {WEB, KB}: KB = base de conocimiento (18 secciones) AUDITADA (docs/FUENTES_VERIFICADAS.md); WEB = KB + instrucciones del chat web
+  whatsapp.js              webhook de WhatsApp Business Cloud API (Meta) del asistente +56 9 5373 0030 → lib/wsp_agent.js
   lib/prompt_whatsapp.js   canal WhatsApp (docs/CANAL_WHATSAPP.md): rol + KB, parseAsignacion() (solo desde +56 9 8883 0767), formatDerivacion() (a +56 9 8538 0357)
+  lib/wsp_agent.js         núcleo del agente (asignación → apertura; conversación → Claude claude-opus-5-5 + herramienta `derivar` + guard(); avisos). Testeable sin red
+  lib/wsp_api.js           envío/plantillas/firma/parseo de la Cloud API · lib/store.js estado por teléfono (Netlify Blobs; memoria en tests)
 modules/orientador/        módulo SEPARADO, NO desplegado: orientar.js (POST /api/orientar) para integrar el formulario de iasapre.cl
 tests/                     batería (ver §6) · remote_smoke.js = humo contra producción (npm run smoke)
 docs/                      ARQUITECTURA, FUENTES_VERIFICADAS, DECISIONES_Y_REGLAS, PENDIENTES, GUIA_DEPLOY, CHANGELOG, PROMPT_INICIAL, ESTILO_WSP_NICO (voz del bot), CANAL_WHATSAPP (rol del asistente en WhatsApp)
@@ -59,6 +62,7 @@ Respuestas: `D.*` (dinámicas con datos del perfil), `EXT` (textos largos verifi
 | estilo.js | 155 respuestas: apertura, sin `¡`, cierres, registro chileno, CTA rotado, Meet, nunca "soy Nico" | pasa |
 | usted.js | 792 respuestas a mayores de 60 sin restos de tú; salud mental y cifras limpias; tuteo bajo 60 | pasa |
 | whatsapp.js | prompt del canal WhatsApp (reglas clave, sin cifras prohibidas), asignaciones solo del número válido, inyección ignorada, derivación | pasa |
+| wsp_agent.js | agente completo con Claude/WhatsApp/almacén simulados: apertura, reasignación, guard, derivar sin salud mental, refusal, errores, firma del webhook, avisos | pasa |
 | mh_sweep.js | 352 respuestas × perfiles de salud mental: 0 inconsistencias | 0 |
 | audit_sweep.js | ninguna respuesta contiene cifras/frases ya corregidas | 0 |
 | sim3.js / sim.js | miles de conversaciones sintéticas con typos, mayúsculas, muletillas, 1/3 "por voz" | ≥ 99 % / ≥ 98 % |
@@ -70,7 +74,7 @@ Respuestas: `D.*` (dinámicas con datos del perfil), `EXT` (textos largos verifi
 Submit del formulario → `notify("form")` (mínimo). Al pedir comparación (`D.comparar_si`) → `notify("comparacion")` con resumen completo (`NicoBot.handoff()`: tier, score, renta, 7 %, clínica, cargas, nota interna). Pedir persona → `escalar`. Clic en WhatsApp → `wa_click`. Cada etapa se envía **una sola vez**. Re‑enganche por silencio (40 s / 75 s, una vez). **Requiere env vars en Netlify** (`DISCORD_WEBHOOK` y/o `LEADS_WEBHOOK`); sin ellas `contact.js` solo deja un respaldo mínimo en logs.
 
 ## 8. Convenciones
-Node ≥ 18, sin build, sin dependencias en runtime (solo `jsdom` para tests). El motor debe seguir siendo un solo archivo cargable por `<script>` y por `require`. No introducir llamadas de red en el motor (es offline por diseño). Mensajes del bot: español de Chile. Commits pequeños; correr `npm test` antes de cada push.
+Node ≥ 18, sin build, sin dependencias en runtime salvo `@netlify/blobs` (estado del canal WhatsApp; `jsdom` solo para tests). El motor debe seguir siendo un solo archivo cargable por `<script>` y por `require`. No introducir llamadas de red en el motor (es offline por diseño). Mensajes del bot: español de Chile. Commits pequeños; correr `npm test` antes de cada push.
 
 ## 9. Contexto de Nico (para decidir con criterio)
 Abogado; IAsapre es su proyecto; WhatsApp comercial +56 9 8538 0357 (ejecutivo humano), Calendly calendly.com/nico-iasapre/30min. Quiere: máxima tasa de conversión, bot flexible con preguntas mal formuladas y audio, información **verificable**, y que las respuestas se sientan humanas. Pendiente de terceros: **Rafa** administra el DNS (chat.iasapre.cl) y el motor de asignación `app.iasapre.cl`.

@@ -20,6 +20,8 @@ curl -s https://iasapre.netlify.app/orientador | grep -c "notify("          # �
 | `LEADS_WEBHOOK` / `ZAPIER_WEBHOOK` | CRM/planilla con resumen completo | **pendiente** |
 | `ANTHROPIC_API_KEY` | fallback `chat.js` (opcional) | **pendiente (la pega Nico)** |
 | `MODEL`, `API_SECRET` | opcionales | — |
+| `WSP_TOKEN`, `WSP_PHONE_NUMBER_ID`, `WSP_APP_SECRET`, `WSP_VERIFY_TOKEN` | webhook del asistente de WhatsApp (+56 9 5373 0030), ver `docs/CANAL_WHATSAPP.md` | **pendiente** |
+| `WSP_TEMPLATE_INICIO`, `WSP_TEMPLATE_DERIVACION`, `WSP_TEMPLATE_LANG`, `WSP_ESPECIALISTA`, `MODEL_WSP`, `MODEL_WSP_EFFORT` | plantillas aprobadas y ajustes del agente (opcionales) | — |
 
 Prueba manual del backend:
 ```bash

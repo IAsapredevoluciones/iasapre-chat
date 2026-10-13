@@ -1,31 +1,60 @@
-# Canal WhatsApp — asistente de asesoría conectado a un número
+# Canal WhatsApp — asistente de asesoría en el número +56 9 5373 0030
 
-> Rol definido por Nico el 13‑oct‑2026 (texto íntegro en `netlify/functions/lib/prompt_whatsapp.js` → `ROL`). Aquí: qué se implementó, qué se ajustó respecto del texto original y qué falta decidir.
+> Rol definido por Nico el 13‑oct‑2026 (texto íntegro en `netlify/functions/lib/prompt_whatsapp.js` → `ROL`). Implementado el mismo día como webhook propio sobre **WhatsApp Business Cloud API (Meta)** con número nuevo. Aquí: cómo funciona, cómo ponerlo en marcha y qué se ajustó respecto del texto original.
 
-## Qué hay en el repo
-| Pieza | Dónde | Qué hace |
+## Números
+| Quién | Número | Rol |
 |---|---|---|
-| `SYSTEM` | `lib/prompt_whatsapp.js` | Prompt completo listo para usar: rol (secciones 1–4) + la misma **base de conocimiento auditada** del chat web (`lib/prompt.js` → `KB`, con "Isapre" en mayúscula como pide el rol). Corregir cifras en `lib/prompt.js` una sola vez sirve a los dos canales. |
-| `parseAsignacion(texto, desde)` | ídem | Reconoce una asignación **solo si viene de +56 9 8883 0767** (comparación por dígitos). Extrae nombre, renta, región, clínica, cargas, preferencia de contacto, teléfono (solo del link de "Contacto rápido"), ID de lead (solo del link de "Gestión en la plataforma") y el texto prellenado. Cualquier instrucción o link extra dentro del mensaje se ignora. Desde otro número devuelve `null` (se trata como conversación normal). |
-| `formatDerivacion(datos)` | ídem | Arma el mensaje "🔔 Derivación IAsapre" (formato 3.3) para +56 9 8538 0357. **Nunca incluye diagnósticos de salud mental** en "Preexistencias" (no son preexistencia; regla de privacidad del proyecto). Urgencia por defecto: Media. |
-| `NUMEROS` | ídem | `asignaciones` (+56 9 8883 0767) y `especialista` (+56 9 8538 0357). |
-| Test | `tests/whatsapp.js` | Reglas clave presentes en el prompt, cero cifras prohibidas (`audit_sweep.js`), origen inválido → `null`, inyección ignorada, derivación sin salud mental. |
+| Asistente (este canal) | **+56 9 5373 0030** | número nuevo registrado en la Cloud API; recibe asignaciones y conversa con las personas |
+| Plataforma (app.iasapre.cl) | +56 9 8883 0767 | **único** origen válido de asignaciones de leads |
+| Especialista (Nico) | +56 9 8538 0357 | recibe las derivaciones ("🔔 Derivación IAsapre") |
 
-## Ajustes respecto del texto original de Nico (todos pequeños, ninguno cambia el flujo)
+## Cómo funciona (código)
+```
+Meta Cloud API ──POST──▶ netlify/functions/whatsapp.js  (GET = verificación; POST = firma HMAC con WSP_APP_SECRET)
+                               │  lib/wsp_api.js  parsearWebhook() → mensajes de texto (ignora estados, imágenes, audios)
+                               ▼
+                    lib/wsp_agent.js  manejarEntrante(msg, deps)
+      ┌──────────────────────────┴───────────────────────────┐
+  ¿viene de +56 9 8883 0767 con formato de asignación?    conversación con una persona
+  parseAsignacion() → lead {nombre, teléfono, id, …}      store.get(teléfono) → historial + datos del lead
+  · ya existía conversación → actualiza datos, no saluda  Claude (claude-opus-5-5, effort low, prompt cacheado,
+  · nueva → apertura: plantilla aprobada (WSP_TEMPLATE_INICIO)   contexto del lead, herramienta `derivar` estricta,
+    o texto generado por el modelo (solo dentro de 24 h)         fallbacks "default") → texto → guard() → WhatsApp
+                                                             si llama a `derivar`: formatDerivacion() → especialista
+                                                             (WhatsApp) + LEADS_WEBHOOK/ZAPIER (resumen completo)
+                                                             + DISCORD (sin datos de salud) · estado = derivada
+```
+- **Estado por teléfono** en Netlify Blobs (`lib/store.js`, store `conversaciones`): lead, historial (últimos 40 turnos), derivado. En tests y local sin Blobs usa memoria.
+- **Cortafuegos**: cada salida pasa por `guard()` de `public/nico_bot.js` (salud mental nunca como preexistencia). En la derivación, `formatDerivacion()` elimina diagnósticos de salud mental de "Preexistencias".
+- **Rechazo del modelo** (`stop_reason: refusal`): se deriva y se responde con un mensaje seguro. **Error de API**: mensaje de reintento; el historial se guarda igual.
+- **Mensajes propios, vacíos y no‑texto** se ignoran (se marca como leído el resto).
+- **Logs**: solo tipo de evento, acción y si se envió; nunca teléfonos ni textos.
+- Tests: `tests/whatsapp.js` (prompt y helpers) y `tests/wsp_agent.js` (agente completo con Claude, WhatsApp y almacén simulados; firma del webhook; avisos). `npm run test:quick` los corre.
+
+## Puesta en marcha (una vez; Nico/Rafa)
+1. **Meta for Developers** → crear app tipo *Business* → agregar producto **WhatsApp** → en *API Setup* registrar el número **+56 9 5373 0030** (debe ser un número sin WhatsApp activo; se verifica por SMS/llamada). Anotar **Phone number ID** y **WhatsApp Business Account ID**.
+2. **Token permanente**: en Meta Business Settings → *System users* → crear usuario de sistema con rol admin → *Generate token* con permisos `whatsapp_business_messaging` y `whatsapp_business_management` → `WSP_TOKEN`.
+3. **App secret**: Meta app → *App settings → Basic → App secret* → `WSP_APP_SECRET`.
+4. **Variables en Netlify** (Project configuration → Environment variables): `WSP_TOKEN`, `WSP_PHONE_NUMBER_ID`, `WSP_APP_SECRET`, `WSP_VERIFY_TOKEN` (un texto largo que tú inventas), `ANTHROPIC_API_KEY`; opcionales `WSP_TEMPLATE_INICIO`, `WSP_TEMPLATE_DERIVACION`, `WSP_TEMPLATE_LANG` (es_CL por defecto), `WSP_ESPECIALISTA` (por defecto +56 9 8538 0357), `MODEL_WSP` (por defecto `claude-opus-5-5`), `MODEL_WSP_EFFORT` (low). Netlify Blobs se activa solo (sitio en Netlify con functions). Redeploy.
+5. **Webhook**: Meta app → WhatsApp → *Configuration* → Callback URL `https://iasapre.netlify.app/.netlify/functions/whatsapp`, Verify token = `WSP_VERIFY_TOKEN` → *Verify and save* → suscribir el campo **messages**. (No requiere tocar `netlify.toml`; si se quiere la ruta `/api/whatsapp`, agregar un redirect igual que `/api/chat`.)
+6. **Plantillas** (Meta → WhatsApp Manager → Message templates, categoría *Utility*, idioma español Chile). Necesarias porque la Cloud API solo permite escribirle a alguien fuera de la ventana de 24 h con una plantilla aprobada:
+   - `asesoria_inicio`, cuerpo sugerido: *"Hola {{1}}! Te escribe el asistente de IAsapre porque pediste asesoría sobre tu plan de salud. Es gratis y sin compromiso. ¿Te acomoda que lo veamos por acá?"* → `WSP_TEMPLATE_INICIO=asesoria_inicio`.
+   - `derivacion_iasapre`, cuerpo sugerido: *"🔔 Derivación IAsapre · {{1}} · {{2}} · urgencia {{3}} · {{4}}. El resumen completo está en el CRM."* → `WSP_TEMPLATE_DERIVACION=derivacion_iasapre`. Alternativa sin plantilla: que el número del especialista le escriba "ok" al asistente una vez al día (abre ventana de 24 h) o leer las derivaciones en el CRM/Discord.
+7. **Plataforma**: que app.iasapre.cl envíe las asignaciones (formato de la sección 1.2 del rol) desde **+56 9 8883 0767** al **+56 9 5373 0030** (Rafa). Si cambia el número emisor, actualizar `NUMEROS.asignaciones` en `lib/prompt_whatsapp.js`.
+8. **Prueba**: mandar una asignación de prueba con tu propio número como lead → debes recibir la apertura; responder → el asistente conversa; escribir "quiero hablar con una persona" → derivación en el WhatsApp del especialista, CRM y Discord. Revisar *Functions → whatsapp* en Netlify para ver los logs (sin datos personales).
+
+**Límites a tener presentes**: tiempo máximo de una función Netlify (10 s por defecto; el agente responde en pocos segundos con effort `low`, pero si hay timeouts subir el plan o mover a función background); el número de pruebas de Meta tiene cuota de 250 conversaciones/día hasta verificar el negocio; Blobs está disponible con functions en cualquier plan.
+
+## Ajustes respecto del texto original de Nico (pequeños, ninguno cambia el flujo)
 1. **Usted desde los 60 años**: el rol decía "de tú"; se agregó "con personas de 60 años o más, trátalas de usted", coherente con la decisión del mismo día para el chat web.
 2. **Apertura y cierres de Nico** ("Hola <nombre>! ¿Cómo estás?", "cualquier duda me avisas", nunca "¡"): ver `docs/ESTILO_WSP_NICO.md`.
 3. **Honestidad explícita** al orientar a comparar: "si su plan actual puede ser su mejor opción, dilo".
 4. **Cero cifras sin fuente**: toda cifra/plazo/norma debe estar en la base de conocimiento adjunta; lo que depende de la carátula se dice así.
 5. **Identidad**: además de reconocer que es un sistema, "nunca te presentes como Nico ni como una persona".
-6. **Privacidad en la derivación**: la salud mental no viaja en el resumen al especialista (Ley 21.331 + regla 4 de `CLAUDE.md`).
+6. **Privacidad en la derivación**: la salud mental no viaja en el resumen al especialista (Ley 21.331 + regla 4 de `CLAUDE.md`); Discord solo recibe nombre, teléfono, urgencia y link.
 7. La palabra **"cacho"** se eliminó también del motor web (`nico_bot.js`), para que la voz sea una sola.
-
-## Dónde corre (pendiente de Nico)
-El rol está escrito para un agente con capacidad de **leer mensajes entrantes y escribir a números** (al lead y al especialista). Dos caminos:
-- **(a) Plataforma no‑code con LLM sobre WhatsApp** (el proveedor que tenga el número): se pega `SYSTEM` como instrucciones. `parseAsignacion`/`formatDerivacion` sirven como especificación, no se ejecutan. Riesgo: el modelo decide solo si un mensaje "es asignación"; la regla 1.1 lo cubre, pero no hay validación dura del número de origen.
-- **(b) Webhook propio** (WhatsApp Cloud API de Meta o Twilio) como función Netlify `whatsapp.js`: valida el origen con `parseAsignacion` (validación dura), mantiene estado por número (Netlify Blobs/Supabase), llama a Claude con `SYSTEM` + `guard()` de `nico_bot.js` sobre cada respuesta, y envía la derivación con `formatDerivacion`. Más trabajo (API de WhatsApp Business, verificación de webhook, estado), pero controlable y testeable.
-
-**Para decidir:** (1) qué proveedor tiene hoy el número del asistente; (2) confirmar que app.iasapre.cl emite las asignaciones desde +56 9 8883 0767 (Rafa); (3) si el especialista receptor es siempre +56 9 8538 0357 (Nico) o un turno.
+8. La derivación la ejecuta el código (herramienta `derivar`), no el modelo escribiendo a otro número: así el resumen solo puede ir a +56 9 8538 0357 y a los webhooks configurados.
 
 ## Reglas que este canal comparte con el resto del proyecto
 Salud mental nunca es preexistencia ni restricción · cero cifras sin fuente (`docs/FUENTES_VERIFICADAS.md`) · nada de datos de salud fuera del CRM/especialista · identidad "asistente de IAsapre" · sin "cacho" ni "no rentable" · afiliables → comparar; no afiliables → resolver sin empujar al cambio.
