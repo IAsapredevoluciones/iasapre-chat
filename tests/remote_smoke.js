@@ -3,7 +3,7 @@
 // los mismos barridos de la batería (cortafuegos de salud mental + auditoría de cifras) y los marcadores de la v6.
 // Uso: node tests/remote_smoke.js   (o SMOKE_URL=https://otro-sitio node tests/remote_smoke.js)
 const fs=require("fs"),path=require("path"),os=require("os"),{spawnSync}=require("child_process");
-const BASE=(process.env.SMOKE_URL||"https://iasapre.netlify.app").replace(/\/$/,"");
+const BASE=(process.env.SMOKE_URL||"https://iasapre-chat.netlify.app").replace(/\/$/,""); // sitio nuevo (13-oct-2026); el antiguo iasapre.netlify.app quedó en otra cuenta con la v3
 const fails=[];const ok=(c,m)=>{console.log((c?" ✔ ":" ✘ ")+m);if(!c)fails.push(m);};
 (async()=>{const dir=fs.mkdtempSync(path.join(os.tmpdir(),"iasapre-smoke-"));
  const get=async(p)=>{const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),20000);try{const r=await fetch(BASE+p,{signal:ctrl.signal,headers:{"cache-control":"no-cache"}});if(!r.ok)throw new Error(p+" → HTTP "+r.status);return await r.text();}finally{clearTimeout(to);}};

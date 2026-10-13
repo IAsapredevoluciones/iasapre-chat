@@ -1,5 +1,5 @@
 # Despliegue (con Claude Code se simplifica: `git push`)
-Repo público `IAsapredevoluciones/iasapre-chat`, rama `main`. Netlify (sitio `iasapre`) despliega solo al hacer push; `publish = public`, funciones en `netlify/functions`.
+Repo público `IAsapredevoluciones/iasapre-chat`, rama `main`. Netlify (sitio **`iasapre-chat`**, https://iasapre-chat.netlify.app, equipo IAsapredevoluciones) despliega solo al hacer push; `publish = public`, funciones en `netlify/functions`. El sitio antiguo `iasapre` (iasapre.netlify.app, v3) está en otra cuenta Netlify sin acceso.
 
 ```bash
 git clone https://github.com/IAsapredevoluciones/iasapre-chat.git && cd iasapre-chat
@@ -10,8 +10,8 @@ git add -A && git commit -m "v6: auditoría de datos, traspaso de leads, voz, te
 **Verificación post‑deploy:**
 ```bash
 npm run smoke   # descarga el motor publicado y corre contra él los barridos de salud mental y cifras + marcadores v6
-curl -s https://iasapre.netlify.app/nico_bot.js | grep -c "urgencia_ley"   # ≥1
-curl -s https://iasapre.netlify.app/orientador | grep -c "notify("          # ≥1
+curl -s https://iasapre-chat.netlify.app/nico_bot.js | grep -c "urgencia_ley"   # ≥1
+curl -s https://iasapre-chat.netlify.app/orientador | grep -c "notify("          # ≥1
 ```
 **Variables de entorno (Netlify → Project configuration → Environment variables):**
 | Variable | Para qué | Estado |
@@ -25,7 +25,7 @@ curl -s https://iasapre.netlify.app/orientador | grep -c "notify("          # �
 
 Prueba manual del backend:
 ```bash
-curl -s -X POST https://iasapre.netlify.app/.netlify/functions/contact -H 'Content-Type: application/json' \
+curl -s -X POST https://iasapre-chat.netlify.app/.netlify/functions/contact -H 'Content-Type: application/json' \
  -d '{"name":"Prueba","phone":"+56912345678","stage":"form","tier":"tibio"}'
 ```
 **Cuidado:** `netlify.toml` tiene un redirect catch‑all (`/*`) a un sitio estático antiguo con `force=false`; los archivos de `public/` tienen prioridad. No agregar archivos que oculten `/` sin revisar el centro de ayuda.

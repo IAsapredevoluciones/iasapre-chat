@@ -14,9 +14,9 @@
 ## 2. Estado actual (13-oct-2026) — v6.5
 - Motor offline `public/nico_bot.js` (~115 KB) + base `public/kb_offline.js` (55 temas) + landing `public/orientador.html`.
 - **Batería: 24/24 en verde** (`npm test`). Simulación de 10.000 conversaciones ≈ 100 % comprensión. `npm run smoke` prueba producción (motor publicado) con los mismos barridos.
-- **Sitio público https://iasapre.netlify.app/orientador sigue con v3** hasta que se haga `git push origin main` (los commits v6/v6.1 están en `main` local; esta máquina no tiene credenciales de GitHub). Verificar después con `npm run smoke`.
+- **Producción nueva: https://iasapre-chat.netlify.app** (sitio creado el 13‑oct‑2026 en el equipo Netlify `IAsapredevoluciones`, cuenta papilarra@gmail.com, deploy automático desde `main` de GitHub). El sitio antiguo https://iasapre.netlify.app está en otra cuenta Netlify sin acceso y sigue con la v3; iasapre.cl aún no apunta al nuevo. Verificar con `npm run smoke` (apunta al nuevo).
 - Pruebas manuales: artifact de Claude https://claude.ai/artifact/64UmdfC6HVw5dBhj32Fr8w (misma landing, todo inline).
-- Repo GitHub: `IAsapredevoluciones/iasapre-chat` (público) → Netlify sitio `iasapre` (deploy automático desde `main`).
+- Repo GitHub: `IAsapredevoluciones/iasapre-chat` (público) → Netlify sitio `iasapre-chat` (deploy automático desde `main`).
 
 ## 3. Mapa del repo
 ```

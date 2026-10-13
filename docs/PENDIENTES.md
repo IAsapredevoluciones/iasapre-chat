@@ -1,7 +1,7 @@
 # Pendientes priorizados (con criterio de aceptación)
 
 ## P0 — esta semana (bloquean conversión)
-1. **Desplegar v6** (`docs/GUIA_DEPLOY.md`). *Estado 12‑oct:* commits listos en `main` local (v6 + v6.1); **falta `git push origin main`** (sin credenciales de GitHub en esta máquina). *Aceptación:* `npm run smoke` en verde (hoy contra producción v3: 6 fallas, 57 cifras prohibidas).
+1. **Desplegar v6** (`docs/GUIA_DEPLOY.md`). *Estado 13‑oct:* sitio nuevo `iasapre-chat` creado en Netlify (equipo IAsapredevoluciones) conectado a GitHub; despliega lo que haya en `main`. **Falta `git push origin main`** desde la máquina de Nico. *Aceptación:* `npm run smoke` en verde contra https://iasapre-chat.netlify.app. Después: apuntar iasapre.cl / chat.iasapre.cl al sitio nuevo (Rafa) y retirar el antiguo.
 2. **Destino de leads:** crear `DISCORD_WEBHOOK` (alertas) y `LEADS_WEBHOOK` (Make/Zapier → planilla/CRM) en Netlify. *Aceptación:* un lead de prueba aparece en Discord y en la planilla; el detalle de salud **no** está en Discord.
 3. **Responsable de respuesta < 5 min** a leads `caliente` (humano, definir con Nico) y ajustar el texto "normalmente el mismo día hábil".
 4. ✅ **Ocultar el panel de depuración** en producción (solo con `?debug=1`; test `ui_debug.js`).
