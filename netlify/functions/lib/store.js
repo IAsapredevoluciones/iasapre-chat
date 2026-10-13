@@ -1,4 +1,5 @@
-// Estado de conversaciones por teléfono: Netlify Blobs en producción (store "conversaciones"), memoria como respaldo
+// Estado de conversaciones por teléfono: Netlify Blobs en producción (store "conversaciones", consistencia eventual: la
+// "strong" no está disponible en funciones clásicas y hacía fallar cada lectura), memoria como respaldo
 // (tests y desarrollo local sin contexto de Blobs). Clave = teléfono en dígitos (56912345678). Sin datos en logs.
 const mem = new Map();
 let blobs = null;
@@ -7,7 +8,7 @@ try { blobs = require("@netlify/blobs"); } catch (e) { blobs = null; }
 /** Llamar al inicio del handler clásico (event, context) para que Blobs reciba el contexto de Netlify. */
 function conectar(event) { try { if (blobs && blobs.connectLambda) blobs.connectLambda(event); } catch (e) {} }
 
-function tienda() { try { return blobs ? blobs.getStore({ name: "conversaciones", consistency: "strong" }) : null; } catch (e) { return null; } }
+function tienda() { try { return blobs ? blobs.getStore({ name: "conversaciones" }) : null; } catch (e) { return null; } }
 
 async function getConv(telefono) {
   const k = String(telefono || "").replace(/\D/g, ""); if (!k) return null;
