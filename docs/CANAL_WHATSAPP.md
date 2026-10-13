@@ -63,6 +63,8 @@ Panel de solo lectura: **https://iasapre-chat.netlify.app/.netlify/functions/pan
 
 **Asignaciones por WhatsApp desde +56 9 8883 0767**: como ambos números están en la Cloud API de Meta, los mensajes entre ellos **no se entregan** (limitación de Meta, no del bot): el webhook no recibe nada y por eso el asistente no responde. La vía correcta es el endpoint HTTP `asignar` (tabla de arriba); si alguna vez llega por WhatsApp, el parser ya acepta el formato real de la plataforma (probado con un mensaje real: nombre, lead, renta, región, clínica, cargas).
 
+**Asignar leads en lote** (por ejemplo, los que la plataforma intentó asignar por WhatsApp y nunca llegaron): `ASIGNAR_SECRET=xxx node tools/asignar_lote.js leads.json` (JSON o CSV con nombre, telefono, leadId, renta, region, clinica, cargas, contacto). Cada lead recibe la apertura con la plantilla aprobada `asesoria_inicio`; si ya conversaba, solo se actualizan sus datos.
+
 **Lecciones de la puesta en marcha (13‑oct‑2026)**
 - La app de Meta debe estar **publicada** (Publicar → modo activo). Sin publicar, Meta solo entrega webhooks de prueba del panel; los mensajes reales nunca llegan a la función (se perdieron todos los "hola" enviados antes de publicar).
 - El token temporal del panel de Meta caduca o se invalida al cambiar la contraseña: la API responde `401 Authentication Error`. Usar siempre el token del **usuario de sistema** "IAsapre Orientacion" (Business Settings → Usuarios del sistema → Generar token). Generarlo requiere que **otro administrador del negocio apruebe la solicitud** (Configuración → Solicitudes).
