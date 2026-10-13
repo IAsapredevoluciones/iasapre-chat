@@ -9,7 +9,7 @@
 | Cuenta de WhatsApp Business (WABA) del asistente | IAsapre Orientacion · ID 3415473525288937 (separada de la cuenta "iasapre cl" donde vive el +56 9 8883 0767, que NO está suscrita a esta app) |
 | Número / Phone number ID | +56 9 5373 0030 · 1318618498009778 (`WSP_PHONE_NUMBER_ID`) |
 | Webhook | https://iasapre-chat.netlify.app/.netlify/functions/whatsapp · verificado y suscrito a `messages` solo para la WABA del asistente |
-| Endpoint de asignaciones HTTP | https://iasapre-chat.netlify.app/.netlify/functions/asignar · `Authorization: Bearer <ASIGNAR_SECRET>` · body `{texto}` o `{nombre, telefono, leadId, renta, region, clinica, cargas, contacto}` |
+| Endpoint de asignaciones HTTP | https://iasapre-chat.netlify.app/.netlify/functions/asignar · `Authorization: Bearer <ASIGNAR_SECRET>` · body `{texto}` o `{nombre, telefono, leadId, renta, region, clinica, cargas, contacto}` · `{reiniciar: "<teléfono>"}` borra la conversación guardada de ese número (para repetir una prueba desde cero) |
 
 ## Números
 | Quién | Número | Rol |

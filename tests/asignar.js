@@ -18,6 +18,10 @@ function mocks() { const mem = new Map(), enviados = [], plantillas = []; return
   const c = M.mem.get("56990156640"); ok(c && c.lead.nombre === "Camila Rojas" && c.lead.leadId === "L-77" && c.lead.clinica === "Clínica Alemana" && c.lead.renta === "$1.900.000", "datos del lead guardados");
   r = await H({ httpMethod: "POST", headers: { authorization: "Bearer secreto-asignar" }, body: JSON.stringify({ texto: F.textoAsignacion({ nombre: "Pedro Soto", telefono: "56955550000", leadId: "L-2" }) }) });
   ok(r.statusCode === 200 && JSON.parse(r.body).accion === "abierta" && M.enviados.length === 2, "asignación por texto con el formato oficial");
+  M.deps.store.del = async (k) => { M.mem.delete(k); };
+  r = await H({ httpMethod: "POST", headers: { authorization: "Bearer secreto-asignar" }, body: JSON.stringify({ reiniciar: "+56 9 9015 6640" }) });
+  ok(r.statusCode === 200 && JSON.parse(r.body).tipo === "reinicio" && !M.mem.get("56990156640") && M.mem.get("56955550000"), "reiniciar borra solo esa conversación");
+  r = await H({ httpMethod: "POST", headers: { authorization: "Bearer secreto-asignar" }, body: JSON.stringify({ reiniciar: "12" }) }); ok(r.statusCode === 400, "reiniciar con teléfono inválido → 400");
   r = await H({ httpMethod: "POST", headers: { authorization: "Bearer secreto-asignar" }, body: JSON.stringify({ nombre: "Sin tel" }) }); ok(r.statusCode === 400, "sin teléfono → 400");
   r = await H({ httpMethod: "GET", headers: {} }); ok(r.statusCode === 405, "GET → 405");
   console.log(fails.length ? "FALLAS:\n - " + fails.join("\n - ") : "Asignar OK: secreto, campos o texto, apertura al lead y datos guardados"); process.exit(fails.length ? 1 : 0);

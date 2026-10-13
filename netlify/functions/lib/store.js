@@ -47,6 +47,14 @@ async function setConv(telefono, conv) {
   mem.set(k, fusionar(mem.get(k), conv)); return true;
 }
 
+/** Borra la conversación (pruebas / reinicio de un caso). */
+async function delConv(telefono) {
+  const k = String(telefono || "").replace(/\D/g, ""); if (!k) return false;
+  const s = tienda();
+  if (s) { try { await s.delete(k); } catch (e) { console.error("blobs delete", e && e.message); } }
+  mem.delete(k); return true;
+}
+
 const memoria = { get: (k) => mem.get(String(k).replace(/\D/g, "")) || null, set: (k, v) => { mem.set(String(k).replace(/\D/g, ""), v); }, clear: () => mem.clear() };
 
-module.exports = { conectar, getConv, setConv, fusionar, memoria };
+module.exports = { conectar, getConv, setConv, delConv, fusionar, memoria };

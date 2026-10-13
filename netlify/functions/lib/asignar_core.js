@@ -4,6 +4,7 @@
 // POST /.netlify/functions/asignar  · header: Authorization: Bearer <ASIGNAR_SECRET>
 // body JSON: { "texto": "<asignación con el formato de la sección 1.2>" }  o bien
 //            { "nombre", "telefono", "leadId", "renta", "region", "clinica", "cargas", "contacto" }
+//            o { "reiniciar": "<teléfono>" } para borrar la conversación guardada de ese número (pruebas).
 // Responde 200 {ok, tipo, accion, enviado}. La lógica es la misma que para una asignación recibida por WhatsApp (lib/wsp_agent.js).
 const { NUMEROS } = require("./prompt_whatsapp.js");
 const { manejarEntrante, crearNotificador, claudeHTTP } = require("./wsp_agent.js");
@@ -29,6 +30,11 @@ function crearHandler(depsOverride) {
     const auth = (event.headers && (event.headers.authorization || event.headers.Authorization)) || "";
     if (auth !== "Bearer " + env.ASIGNAR_SECRET) return json(401, { error: "No autorizado" });
     let d = {}; try { d = JSON.parse(event.body || "{}"); } catch (e) { return json(400, { error: "JSON inválido" }); }
+    if (d.reiniciar) { // {reiniciar: "<teléfono>"}: borra la conversación guardada (para volver a probar un caso desde cero)
+      const tel = String(d.reiniciar).replace(/\D/g, ""); if (tel.length < 9) return json(400, { error: "Teléfono inválido" });
+      const store = (depsOverride && depsOverride.store) || (() => { const st = require("./store.js"); st.conectar(event); return { del: st.delConv }; })();
+      await store.del(tel); console.log("asignar", JSON.stringify({ tipo: "reinicio" })); return json(200, { ok: true, tipo: "reinicio" });
+    }
     const texto = typeof d.texto === "string" && d.texto.trim() ? d.texto : textoAsignacion(d);
     if (!/wa\.me\/\d{9,12}/.test(texto)) return json(400, { error: "Falta el teléfono del lead (telefono o link wa.me)" });
     let deps = depsOverride;
