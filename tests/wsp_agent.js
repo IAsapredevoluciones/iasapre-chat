@@ -95,7 +95,7 @@ const txt = (t) => ({ stop_reason: "end_turn", content: [{ type: "text", text: t
   const Mw = mocks([txt("Hola Lucía! ¿Cómo estás? ¿En qué Isapre estás hoy?")]); const Hw = A.crearHandler(Mw.deps);
   let p = await Hw({ httpMethod: "POST", headers: { "x-hub-signature-256": "sha256=mala" }, body: raw }); ok(p.statusCode === 401, "firma inválida → 401");
   p = await Hw({ httpMethod: "POST", headers: { "x-hub-signature-256": firma }, body: raw });
-  ok(p.statusCode === 200 && JSON.parse(p.body).n === 2 && Mw.enviados.length === 1 && Mw.enviados[0].to === "56988880000" && /Lucía/.test(Mw.enviados[0].body), "evento firmado: responde al texto, ignora la imagen y los estados");
+  ok(p.statusCode === 200 && JSON.parse(p.body).n === 2 && Mw.enviados.length === 2 && Mw.enviados[0].to === "56988880000" && /Lucía/.test(Mw.enviados[0].body) && Mw.enviados[1].body === A.MSG_NO_TEXTO && Mw.llamadas.length === 1, "evento firmado: responde al texto, a la imagen avisa que solo lee texto/audio (sin llamar al modelo) e ignora los estados");
   ok(Mw.mem.get("56988880000").nombrePerfil === "Lucía", "nombre del perfil guardado");
   p = await Hw({ httpMethod: "POST", headers: { "x-hub-signature-256": firma }, body: Buffer.from(raw).toString("base64"), isBase64Encoded: true }); ok(p.statusCode === 200, "cuerpo en base64 también se verifica");
   ok(api.parsearWebhook(evento).length === 2 && api.parsearWebhook({}).length === 0, "parsearWebhook");
@@ -110,7 +110,7 @@ const txt = (t) => ({ stop_reason: "end_turn", content: [{ type: "text", text: t
   const rawM = JSON.stringify(mio), firmaM = "sha256=" + crypto.createHmac("sha256", "secreto-de-prueba").update(rawM).digest("hex");
   const Mm = mocks([txt("Hola Lucía!")]); const Hm = A.crearHandler(Mm.deps);
   p = await Hm({ httpMethod: "POST", headers: { "x-hub-signature-256": firmaM }, body: rawM });
-  ok(p.statusCode === 200 && Mm.enviados.length === 1, "mensajes para el número del asistente sí se responden");
+  ok(p.statusCode === 200 && Mm.enviados.length === 2 && Mm.llamadas.length === 1, "mensajes para el número del asistente sí se responden");
   delete process.env.WSP_PHONE_NUMBER_ID;
   ok(api.verificarFirma(raw, firma, "secreto-de-prueba") && !api.verificarFirma(raw, firma, "otro") && !api.verificarFirma(raw, "", "secreto-de-prueba"), "verificarFirma");
   // 11) notificador: Discord sin salud; CRM con resumen; WhatsApp al especialista

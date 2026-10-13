@@ -22,6 +22,7 @@ curl -s https://iasapre-chat.netlify.app/orientador | grep -c "notify("         
 | `MODEL`, `API_SECRET` | opcionales | — |
 | `WSP_TOKEN`, `WSP_PHONE_NUMBER_ID`, `WSP_APP_SECRET`, `WSP_VERIFY_TOKEN` | webhook del asistente de WhatsApp (+56 9 5373 0030), ver `docs/CANAL_WHATSAPP.md` | **pendiente** |
 | `WSP_TEMPLATE_INICIO`, `WSP_TEMPLATE_DERIVACION`, `WSP_TEMPLATE_LANG`, `WSP_ESPECIALISTA`, `MODEL_WSP`, `MODEL_WSP_EFFORT` | plantillas aprobadas y ajustes del agente (opcionales) | — |
+| `OPENAI_API_KEY` (o `DEEPGRAM_API_KEY`), `STT_PROVIDER`, `STT_MODEL` | transcripción de notas de voz de WhatsApp (`lib/stt.js`); sin clave el bot pide el mensaje por escrito | **pendiente (la pega Nico)** |
 | `ASIGNAR_SECRET` | secreto del endpoint HTTP de asignaciones (`/.netlify/functions/asignar`) que usa app.iasapre.cl | ✅ cargado 13‑oct |
 
 Prueba manual del backend:

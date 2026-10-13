@@ -37,7 +37,9 @@ Meta Cloud API ──POST──▶ netlify/functions/whatsapp.js  (GET = verific
 - **Estado por teléfono** en Netlify Blobs (`lib/store.js`, store `conversaciones`): lead, historial (últimos 40 turnos), derivado. En tests y local sin Blobs usa memoria.
 - **Cortafuegos**: cada salida pasa por `guard()` de `public/nico_bot.js` (salud mental nunca como preexistencia). En la derivación, `formatDerivacion()` elimina diagnósticos de salud mental de "Preexistencias".
 - **Rechazo del modelo** (`stop_reason: refusal`): se deriva y se responde con un mensaje seguro. **Error de API**: mensaje de reintento; el historial se guarda igual.
-- **Mensajes propios, vacíos y no‑texto** se ignoran (se marca como leído el resto).
+- **Notas de voz**: se descargan de la Cloud API (`descargarMedia`), se transcriben con `lib/stt.js` (OpenAI `gpt-4o-mini-transcribe` con `OPENAI_API_KEY`, o Deepgram `nova-3` con `DEEPGRAM_API_KEY`; `STT_PROVIDER`/`STT_MODEL` opcionales) y la transcripción entra como texto de la persona (marcada `audio: true` en el historial). Sin STT configurado o si falla, el bot pide el mensaje por escrito. El audio no se guarda ni se registra.
+- **Imágenes, documentos y stickers**: aviso de que solo lee texto o audios. Reacciones y mensajes propios: silencio.
+- **`#reiniciar`** enviado desde el número del especialista (+56 9 8538 0357) borra su propia conversación guardada, para repetir pruebas desde cero (también `{reiniciar}` en el endpoint `asignar`).
 - **Logs**: solo tipo de evento, acción y si se envió; nunca teléfonos ni textos.
 - Tests: `tests/whatsapp.js` (prompt y helpers) y `tests/wsp_agent.js` (agente completo con Claude, WhatsApp y almacén simulados; firma del webhook; avisos). `npm run test:quick` los corre.
 

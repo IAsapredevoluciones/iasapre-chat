@@ -30,6 +30,9 @@ const TOOLS = [{
 const MSG_DERIVACION = `Esta consulta la va a ver mejor un especialista de nuestro equipo. Le paso tu caso con lo que conversamos para que no tengas que repetirlo, y te escribirá desde el número ${NUMEROS.especialista}. 🙌`;
 const MSG_RECHAZO = `Eso no lo puedo ver por acá. Te paso con un especialista del equipo, que te escribirá desde el número ${NUMEROS.especialista}.`;
 const MSG_ERROR = "Se me cayó la conexión un segundo. ¿Me lo repites? Si sigue fallando, escríbenos al " + NUMEROS.especialista + ".";
+const MSG_AUDIO = "Por acá no alcanzo a escuchar bien los audios. ¿Me lo escribes en un mensaje? Así te respondo altiro.";
+const MSG_NO_TEXTO = "Por acá solo puedo leer mensajes de texto (o audios). ¿Me lo cuentas por escrito?";
+const MSG_REINICIO = "Listo, conversación reiniciada. Escríbeme como si fueras una persona nueva.";
 
 function nuevaConv(telefono, nombrePerfil) {
   return { telefono: digitos(telefono), nombrePerfil: nombrePerfil || "", lead: null, historial: [], derivado: false, derivadoEn: null, asignaciones: 0, creado: new Date().toISOString(), actualizado: null };
@@ -129,10 +132,14 @@ async function manejarEntrante(msg, deps) {
   }
 
   // 2) Conversación con una persona
+  if (from === digitos(process.env.WSP_ESPECIALISTA || NUMEROS.especialista) && /^#\s*reinici(ar|o)$/i.test(texto.trim())) { // solo el especialista: borra su propia conversación para volver a probar
+    if (deps.store.del) await deps.store.del(from);
+    const rr = await deps.enviarTexto(from, MSG_REINICIO); return { tipo: "reinicio", enviado: !!(rr && rr.ok) };
+  }
   const conv = (await deps.store.get(from)) || nuevaConv(from, msg.nombre);
   if (!conv.nombrePerfil && msg.nombre) conv.nombrePerfil = msg.nombre;
   if (msg.messageId && conv.historial.some((h) => h.id === msg.messageId)) return { tipo: "ignorado", motivo: "duplicado" }; // reintento de Meta
-  conv.historial.push({ role: "user", content: texto, t: Date.now(), id: msg.messageId || undefined });
+  conv.historial.push({ role: "user", content: texto, t: Date.now(), id: msg.messageId || undefined, audio: msg.viaAudio ? true : undefined });
   let resp = null, error = null;
   try { resp = await deps.claude(cuerpoClaude(conv)); } catch (e) { error = e; }
   let { texto: salida, derivar: pedido, rechazo } = leerRespuesta(resp);
@@ -191,19 +198,30 @@ function crearHandler(depsOverride) {
     let body = {}; try { body = JSON.parse(raw || "{}"); } catch (e) { return { statusCode: 400, body: "JSON inválido" }; }
     store.conectar(event);
     for (const f of wsp.estadosFallidos(body)) console.error("whatsapp estado failed", f.code, f.title); // sin teléfonos
-    const deps = Object.assign({ store: { get: store.getConv, set: store.setConv }, enviarTexto: wsp.enviarTexto, enviarPlantilla: wsp.enviarPlantilla, claude: claudeHTTP,
-      notificarEspecialista: crearNotificador(wsp, env), plantillaInicio: env.WSP_TEMPLATE_INICIO || "" }, depsOverride || {});
+    const stt = require("./stt.js");
+    const deps = Object.assign({ store: { get: store.getConv, set: store.setConv, del: store.delConv }, enviarTexto: wsp.enviarTexto, enviarPlantilla: wsp.enviarPlantilla, claude: claudeHTTP,
+      notificarEspecialista: crearNotificador(wsp, env), plantillaInicio: env.WSP_TEMPLATE_INICIO || "",
+      transcribir: stt.configurado(env) ? async (mediaId) => { const m = await wsp.descargarMedia(mediaId); return stt.transcribir(m.buffer, m.mime, env); } : null }, depsOverride || {});
     const resultados = [];
     for (const m of wsp.parsearWebhook(body)) {
       // Solo el número del asistente: si el evento viene para otro número de la misma cuenta (p. ej. el WhatsApp de devoluciones), se ignora sin responder.
       if (env.WSP_PHONE_NUMBER_ID && m.phoneNumberId && m.phoneNumberId !== env.WSP_PHONE_NUMBER_ID) { resultados.push({ tipo: "ignorado", motivo: "otro número" }); continue; }
-      if (!m.texto) { resultados.push({ tipo: "ignorado", motivo: "sin texto (" + m.tipo + ")" }); continue; }
       try { if (m.messageId && !depsOverride) wsp.marcarLeido(m.messageId).catch(() => {}); } catch (e) {}
+      if (!m.texto && m.mediaId) { // nota de voz → transcripción (sin guardar el audio ni registrar su contenido)
+        if (!deps.transcribir) { const rr = await deps.enviarTexto(m.from, MSG_AUDIO); resultados.push({ tipo: "audio_sin_stt", enviado: !!(rr && rr.ok) }); continue; }
+        try { m.texto = String(await deps.transcribir(m.mediaId) || "").trim(); m.viaAudio = true; } catch (e) { console.error("audio transcripción", e && e.message); }
+        if (!m.texto) { const rr = await deps.enviarTexto(m.from, MSG_AUDIO); resultados.push({ tipo: "audio_fallido", enviado: !!(rr && rr.ok) }); continue; }
+      }
+      if (!m.texto) {
+        if (m.from && !["reaction", "unsupported"].includes(m.tipo)) { const rr = await deps.enviarTexto(m.from, MSG_NO_TEXTO); resultados.push({ tipo: "ignorado", motivo: "sin texto (" + m.tipo + ")", enviado: !!(rr && rr.ok) }); }
+        else resultados.push({ tipo: "ignorado", motivo: "sin texto (" + m.tipo + ")" });
+        continue;
+      }
       try { resultados.push(await manejarEntrante(m, deps)); } catch (e) { console.error("whatsapp handler", e && e.message); resultados.push({ tipo: "error" }); }
     }
-    console.log("whatsapp", JSON.stringify(resultados.map((r) => ({ tipo: r.tipo, accion: r.accion, derivado: r.derivado, enviado: r.enviado, error: r.error })))); // sin teléfonos ni textos
+    console.log("whatsapp", JSON.stringify(resultados.map((r) => ({ tipo: r.tipo, accion: r.accion, derivado: r.derivado, enviado: r.enviado, error: r.error, motivo: r.motivo })))); // sin teléfonos ni textos
     return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ok: true, n: resultados.length }) };
   };
 }
 
-module.exports = { manejarEntrante, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, MODEL, MSG_DERIVACION, claudeHTTP };
+module.exports = { manejarEntrante, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };

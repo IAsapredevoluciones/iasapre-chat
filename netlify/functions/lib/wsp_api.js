@@ -59,11 +59,24 @@ function parsearWebhook(body) {
         if (m.type === "text") texto = (m.text && m.text.body) || "";
         else if (m.type === "button") texto = (m.button && m.button.text) || "";
         else if (m.type === "interactive") texto = (m.interactive && ((m.interactive.button_reply && m.interactive.button_reply.title) || (m.interactive.list_reply && m.interactive.list_reply.title))) || "";
-        out.push({ from: digitos(m.from), nombre: nombres[m.from] || "", texto, messageId: m.id, tipo: m.type, timestamp: m.timestamp, phoneNumberId });
+        const media = (m.type === "audio" && m.audio) || (m.type === "voice" && m.voice) || null;
+        out.push({ from: digitos(m.from), nombre: nombres[m.from] || "", texto, messageId: m.id, tipo: m.type, timestamp: m.timestamp, phoneNumberId,
+          mediaId: media ? media.id : undefined, mime: media ? media.mime_type : undefined });
       }
     }
   } catch (e) {}
   return out;
+}
+
+/** Descarga un medio (nota de voz) de la Cloud API: GET /{media_id} → url temporal → bytes. Devuelve {buffer, mime}. */
+async function descargarMedia(mediaId) {
+  const c = cfg(); if (!c.token) throw new Error("Falta WSP_TOKEN");
+  const r1 = await fetch(`${API}/${encodeURIComponent(mediaId)}`, { headers: { Authorization: "Bearer " + c.token } });
+  const meta = await r1.json().catch(() => ({}));
+  if (!r1.ok || !meta.url) throw new Error("media " + r1.status + " " + ((meta.error && meta.error.message) || "sin url"));
+  const r2 = await fetch(meta.url, { headers: { Authorization: "Bearer " + c.token } });
+  if (!r2.ok) throw new Error("media descarga " + r2.status);
+  return { buffer: Buffer.from(await r2.arrayBuffer()), mime: meta.mime_type || r2.headers.get("content-type") || "audio/ogg" };
 }
 
 /** Estados de entrega con error (p. ej. plantilla no aprobada, ventana de 24 h cerrada): [{code, title}] sin datos personales. */
@@ -76,4 +89,4 @@ function estadosFallidos(body) {
   return out;
 }
 
-module.exports = { enviarTexto, enviarPlantilla, marcarLeido, verificarFirma, verificarWebhook, parsearWebhook, estadosFallidos, cfg, digitos };
+module.exports = { enviarTexto, enviarPlantilla, marcarLeido, verificarFirma, verificarWebhook, parsearWebhook, estadosFallidos, descargarMedia, cfg, digitos };

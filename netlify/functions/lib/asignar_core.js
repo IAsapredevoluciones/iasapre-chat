@@ -40,7 +40,7 @@ function crearHandler(depsOverride) {
     let deps = depsOverride;
     if (!deps) {
       const wsp = require("./wsp_api.js"), store = require("./store.js"); store.conectar(event);
-      deps = { store: { get: store.getConv, set: store.setConv }, enviarTexto: wsp.enviarTexto, enviarPlantilla: wsp.enviarPlantilla, claude: claudeHTTP, notificarEspecialista: crearNotificador(wsp, env), plantillaInicio: env.WSP_TEMPLATE_INICIO || "" };
+      deps = { store: { get: store.getConv, set: store.setConv, del: store.delConv }, enviarTexto: wsp.enviarTexto, enviarPlantilla: wsp.enviarPlantilla, claude: claudeHTTP, notificarEspecialista: crearNotificador(wsp, env), plantillaInicio: env.WSP_TEMPLATE_INICIO || "" };
     }
     try {
       const r = await manejarEntrante({ from: NUMEROS.asignaciones, nombre: "Plataforma", texto }, deps);
