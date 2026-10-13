@@ -31,7 +31,16 @@ const b64 = (s) => Buffer.from(s).toString("base64");
   r = await H3({ httpMethod: "GET", headers: auth, queryStringParameters: {} }); ok(r.statusCode === 401, "con ASIGNAR_SECRET de respaldo, otra contraseña no entra");
   const H4 = P.crearHandler({ store, env: { ASIGNAR_SECRET: "sec-asignar", PANEL_SECRET: "clave-panel" } });
   r = await H4({ httpMethod: "GET", headers: { authorization: "Basic " + b64("iasapre:sec-asignar") }, queryStringParameters: {} }); ok(r.statusCode === 401, "si existe PANEL_SECRET, ASIGNAR_SECRET ya no sirve");
-  r = await H({ httpMethod: "POST", headers: auth, queryStringParameters: {} }); ok(r.statusCode === 405, "POST → 405");
+  r = await H({ httpMethod: "PUT", headers: auth, queryStringParameters: {} }); ok(r.statusCode === 405, "PUT → 405");
+  // pendientes: Nico (último turno de la persona) aparece "sin responder"; Camila está derivada → no
+  r = await H({ httpMethod: "GET", headers: auth, queryStringParameters: {} });
+  ok(/sin responder/.test(r.body) && /<b>1<\/b> sin responder/.test(r.body) && P.pendiente(convs[1]) && !P.pendiente(convs[0]), "la lista marca las conversaciones sin responder");
+  // POST retomar llama a la acción y muestra el resultado
+  const llamadas = []; const Hr = P.crearHandler({ store, env: { PANEL_SECRET: "clave-panel" }, retomar: async (tel) => { llamadas.push(tel); return { tipo: "retomada", enviado: true }; } });
+  r = await Hr({ httpMethod: "POST", headers: auth, queryStringParameters: { tel: "56985380357" }, body: "accion=retomar" });
+  ok(r.statusCode === 200 && llamadas[0] === "56985380357" && /Respondido/.test(r.body) && /hola/.test(r.body), "POST retomar → acción ejecutada y detalle con aviso");
+  r = await Hr({ httpMethod: "POST", headers: {}, queryStringParameters: { tel: "56985380357" }, body: "accion=retomar" }); ok(r.statusCode === 401 && llamadas.length === 1, "POST sin credenciales → 401 y no ejecuta");
+  r = await Hr({ httpMethod: "POST", headers: auth, queryStringParameters: { tel: "56985380357" }, body: "accion=borrar" }); ok(r.statusCode === 400, "acción desconocida → 400");
   // registro de eventos desde el webhook real (store en memoria)
   process.env.WSP_APP_SECRET = "sec";
   const mem = new Map(); const deps = { registrarEventos: true, store: { get: async (k) => mem.get(k) || null, set: async (k, v) => { mem.set(k, v); } }, enviarTexto: async () => ({ ok: true }), enviarPlantilla: async () => ({ ok: true }), claude: async () => ({ stop_reason: "end_turn", content: [{ type: "text", text: "Hola!" }] }), notificarEspecialista: async () => [], plantillaInicio: "" };

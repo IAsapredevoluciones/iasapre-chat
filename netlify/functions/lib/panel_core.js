@@ -24,19 +24,23 @@ function autorizado(event, env) {
   return igual(dec.slice(0, i), env.PANEL_USUARIO || "iasapre") && igual(dec.slice(i + 1), clave(env));
 }
 
-function vistaLista(convs) {
-  const filas = convs.map((c) => { const L = c.lead || {}; const ult = c.historial && c.historial.length ? c.historial[c.historial.length - 1] : null;
-    return `<tr><td><a href="?tel=${esc(c.telefono)}"><b>${esc(L.nombre || c.nombrePerfil || "Sin nombre")}</b></a><br><small>${esc(fmtCL(c.telefono) || c.telefono)}</small></td><td>${c.derivado ? '<span class="b der">derivada</span>' : '<span class="b">en asesoría</span>'}${L.leadId ? ' <span class="b">lead</span>' : ""}${c.asignaciones ? ` <small>${c.asignaciones} asig.</small>` : ""}</td><td>${(c.historial || []).length} turnos<br><small>${esc(hora(c.actualizado || c.creado))}</small></td><td><small>${esc(ult ? (ult.role === "assistant" ? "Bot: " : "Persona: ") + String(ult.content || "").slice(0, 90) : "")}</small></td></tr>`; }).join("");
-  const der = convs.filter((c) => c.derivado).length;
-  return pagina("Conversaciones", `<div class=box><b>${convs.length}</b> conversaciones · <b>${der}</b> derivadas · ${convs.filter((c) => c.lead && c.lead.leadId).length} con lead de la plataforma. <small>Se guardan los últimos 80 turnos por persona. Para repetir una prueba, el especialista escribe <code>#reiniciar</code> al asistente.</small></div><table><tr><th>Persona</th><th>Estado</th><th>Actividad</th><th>Último mensaje</th></tr>${filas || '<tr><td colspan=4>Aún no hay conversaciones.</td></tr>'}</table>`);
+/** Conversación con la persona esperando respuesta (último turno suyo, o último envío del bot fallido) y no derivada. */
+const pendiente = (c) => { const h = c.historial || [], u = h[h.length - 1]; return !!(u && !c.derivado && (u.role === "user" || u.enviado === false)); };
+const btnRetomar = (c, aviso) => `<form method="post" action="?tel=${esc(c.telefono)}" style="display:inline"><input type="hidden" name="accion" value="retomar"><button class="b" style="cursor:pointer;border:0;background:#2f5fd8;color:#fff">${aviso ? "Retomar (responder ahora)" : "Retomar"}</button></form>`;
+
+function vistaLista(convs, msg) {
+  const filas = convs.map((c) => { const L = c.lead || {}; const ult = c.historial && c.historial.length ? c.historial[c.historial.length - 1] : null; const pend = pendiente(c);
+    return `<tr${pend ? ' style="background:#fff7e6"' : ""}><td><a href="?tel=${esc(c.telefono)}"><b>${esc(L.nombre || c.nombrePerfil || "Sin nombre")}</b></a><br><small>${esc(fmtCL(c.telefono) || c.telefono)}</small></td><td>${c.derivado ? '<span class="b der">derivada</span>' : pend ? '<span class="b no">sin responder</span> ' + btnRetomar(c) : '<span class="b">en asesoría</span>'}${L.leadId ? ' <span class="b">lead</span>' : ""}${c.asignaciones ? ` <small>${c.asignaciones} asig.</small>` : ""}</td><td>${(c.historial || []).length} turnos<br><small>${esc(hora(c.actualizado || c.creado))}</small></td><td><small>${esc(ult ? (ult.role === "assistant" ? "Bot: " : "Persona: ") + String(ult.content || "").slice(0, 90) : "")}</small></td></tr>`; }).join("");
+  const der = convs.filter((c) => c.derivado).length, pend = convs.filter(pendiente).length;
+  return pagina("Conversaciones", `${msg ? `<div class=box>${esc(msg)}</div>` : ""}<div class=box><b>${convs.length}</b> conversaciones · <b>${der}</b> derivadas · <b>${pend}</b> sin responder · ${convs.filter((c) => c.lead && c.lead.leadId).length} con lead de la plataforma. <small>Se guardan los últimos 80 turnos por persona. "Retomar" responde al mensaje pendiente (o reabre con la plantilla si pasaron más de 24 h). Para repetir una prueba, el especialista escribe <code>#reiniciar</code> al asistente.</small></div><table><tr><th>Persona</th><th>Estado</th><th>Actividad</th><th>Último mensaje</th></tr>${filas || '<tr><td colspan=4>Aún no hay conversaciones.</td></tr>'}</table>`);
 }
 
-function vistaDetalle(c) {
+function vistaDetalle(c, msg) {
   const L = c.lead || {};
   const datos = [["Nombre", L.nombre || c.nombrePerfil], ["Teléfono", fmtCL(c.telefono) || c.telefono], ["Lead", L.leadId ? `<a href="https://app.iasapre.cl/?lead=${esc(L.leadId)}">${esc(L.leadId)}</a>` : "sin asignación (escribió por su cuenta)"], ["Renta (form.)", L.renta], ["Región (form.)", L.region], ["Clínica (form.)", L.clinica], ["Cargas (form.)", L.cargas], ["Estado", c.derivado ? `DERIVADA el ${esc(c.derivadoEn || "")}` : "en asesoría"], ["Creada", hora(c.creado)], ["Última actividad", hora(c.actualizado)]]
     .filter(([, v]) => v).map(([k, v]) => `<div><small>${esc(k)}:</small> ${k === "Lead" ? v : esc(v)}</div>`).join("");
   const msgs = (c.historial || []).map((h) => `<div class="m ${h.role === "assistant" ? "a" : "u"}">${esc(h.content)}<div class=t>${h.role === "assistant" ? "Asistente" : "Persona"}${h.audio ? " · 🎙️ audio transcrito" : ""}${h.enviado === false ? " · <b>NO ENVIADO</b>" : ""} · ${esc(hora(h.t))}</div></div>`).join("");
-  return pagina(L.nombre || c.nombrePerfil || c.telefono, `<div class=box>${datos}</div><div class=chat>${msgs || "<div class=box>Sin mensajes.</div>"}</div>`);
+  return pagina(L.nombre || c.nombrePerfil || c.telefono, `${msg ? `<div class=box>${esc(msg)}</div>` : ""}<div class=box>${datos}${pendiente(c) ? `<div style="margin-top:8px"><span class="b no">sin responder</span> ${btnRetomar(c, true)}</div>` : ""}</div><div class=chat>${msgs || "<div class=box>Sin mensajes.</div>"}</div>`);
 }
 
 function vistaEventos(evs) {
@@ -47,13 +51,22 @@ function vistaEventos(evs) {
 function crearHandler(depsOverride) {
   return async function handler(event) {
     const env = (depsOverride && depsOverride.env) || process.env;
-    if (event.httpMethod !== "GET") return { statusCode: 405, headers: HEAD, body: "Método no permitido" };
+    if (event.httpMethod !== "GET" && event.httpMethod !== "POST") return { statusCode: 405, headers: HEAD, body: "Método no permitido" };
     if (!clave(env)) return { statusCode: 503, headers: HEAD, body: pagina("Panel", "<div class=box>Falta configurar <code>PANEL_SECRET</code> (o <code>ASIGNAR_SECRET</code>) en Netlify → Environment variables, y redeployar.</div>") };
     if (!autorizado(event, env)) return noAutorizado();
     let store = depsOverride && depsOverride.store;
     if (!store) { const st = require("./store.js"); st.conectar(event); store = { listar: st.listarConvs, obtener: st.getConv, eventos: st.listarEventos }; }
     const q = event.queryStringParameters || {};
     try {
+      if (event.httpMethod === "POST") { // acciones del panel: retomar una conversación sin responder
+        const form = new URLSearchParams(event.body || ""); const accion = form.get("accion");
+        if (accion !== "retomar" || !q.tel) return { statusCode: 400, headers: HEAD, body: pagina("Acción", "<div class=box>Acción no reconocida. <a href='?'>Volver</a></div>") };
+        const retomar = (depsOverride && depsOverride.retomar) || (async (tel) => { const A = require("./wsp_agent.js"); return A.retomar(tel, A.depsReales(event)); });
+        const r = await retomar(q.tel);
+        const texto = { retomada: "Respondido: el asistente contestó el mensaje pendiente.", reabierta: "Reabierta: pasaron más de 24 h, se envió la plantilla de apertura.", ya_derivada: "No se retoma: la conversación ya fue derivada al especialista.", sin_pendiente: "No había mensaje pendiente.", sin_conversacion: "No existe esa conversación.", ventana_cerrada_sin_plantilla: "Pasaron más de 24 h y no hay plantilla configurada (WSP_TEMPLATE_INICIO).", rechazo: "El modelo rechazó responder; revisa el caso.", error: "Error al responder: " + (r.error || "") }[r.tipo] || r.tipo;
+        const c = await store.obtener(q.tel);
+        return { statusCode: 200, headers: HEAD, body: c ? vistaDetalle(c, texto + (r.enviado === false ? " (el envío por WhatsApp falló)" : "")) : vistaLista(await store.listar(), texto) };
+      }
       if (q.tel) { const c = await store.obtener(q.tel); return { statusCode: c ? 200 : 404, headers: HEAD, body: c ? vistaDetalle(c) : pagina("No encontrada", "<div class=box>No hay conversación con ese número. <a href='?'>Volver</a></div>") }; }
       if (q.eventos) return { statusCode: 200, headers: HEAD, body: vistaEventos(await store.eventos(Math.min(Number(q.n) || 150, 500))) };
       return { statusCode: 200, headers: HEAD, body: vistaLista(await store.listar()) };
@@ -61,4 +74,4 @@ function crearHandler(depsOverride) {
   };
 }
 
-module.exports = { crearHandler, autorizado, vistaLista, vistaDetalle, vistaEventos, esc };
+module.exports = { crearHandler, autorizado, vistaLista, vistaDetalle, vistaEventos, esc, pendiente };

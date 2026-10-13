@@ -156,6 +156,47 @@ async function manejarEntrante(msg, deps) {
   return { tipo: "conversacion", telefono: from, derivado: !!derivacion, enviado: !!(r && r.ok), error: error ? String(error.message) : null };
 }
 
+/** Retoma una conversación con mensajes de la persona sin responder (p. ej. por una falla anterior). deps como en manejarEntrante.
+ *  - Ventana de 24 h abierta (último mensaje de la persona hace menos de 24 h): responde con Claude al historial pendiente.
+ *  - Ventana cerrada: reabre con la plantilla aprobada (deps.plantillaInicio) usando su nombre.
+ *  - Derivada o sin pendiente: no hace nada. Devuelve {tipo, enviado}. */
+async function retomar(telefono, deps) {
+  const tel = digitos(telefono); const conv = tel ? await deps.store.get(tel) : null;
+  if (!conv) return { tipo: "sin_conversacion" };
+  if (conv.derivado) return { tipo: "ya_derivada" };
+  const h = conv.historial || []; const ult = h[h.length - 1];
+  const pendiente = ult && (ult.role === "user" || ult.enviado === false);
+  if (!pendiente) return { tipo: "sin_pendiente" };
+  const ultUser = [...h].reverse().find((x) => x.role === "user");
+  const ventana = ultUser && ultUser.t && Date.now() - ultUser.t < 24 * 3600 * 1000;
+  let salida, r;
+  if (ventana) {
+    let resp = null; try { resp = await deps.claude(cuerpoClaude(conv)); } catch (e) { return { tipo: "error", error: String(e && e.message) }; }
+    const le = leerRespuesta(resp);
+    if (le.rechazo) return { tipo: "rechazo" };
+    if (le.derivar) { await derivar(conv, le.derivar, deps); salida = le.texto || MSG_DERIVACION; } else salida = le.texto;
+    salida = guard(salida) || MSG_ERROR;
+    r = await deps.enviarTexto(tel, salida);
+  } else {
+    if (!deps.plantillaInicio) return { tipo: "ventana_cerrada_sin_plantilla" };
+    const nombre = ((conv.lead && conv.lead.nombre) || conv.nombrePerfil || "").split(" ")[0] || "hola";
+    r = await deps.enviarPlantilla(tel, deps.plantillaInicio, [nombre]);
+    salida = `[Plantilla ${deps.plantillaInicio}] Hola ${nombre}! Te escribe el asistente de IAsapre porque pediste asesoría sobre tu plan de salud. Es gratis. ¿Lo vemos por acá?`;
+  }
+  conv.historial.push({ role: "assistant", content: salida, t: Date.now(), enviado: !!(r && r.ok), retomada: true });
+  conv.actualizado = new Date().toISOString();
+  await deps.store.set(tel, conv);
+  return { tipo: ventana ? "retomada" : "reabierta", enviado: !!(r && r.ok), derivado: !!conv.derivado };
+}
+
+/** deps reales (WhatsApp, Claude, Blobs) para usar fuera del webhook (panel). */
+function depsReales(event) {
+  const wsp = require("./wsp_api.js"), store = require("./store.js"), stt = require("./stt.js"); const env = process.env; store.conectar(event);
+  return { store: { get: store.getConv, set: store.setConv, del: store.delConv }, enviarTexto: wsp.enviarTexto, enviarPlantilla: wsp.enviarPlantilla, claude: claudeHTTP,
+    notificarEspecialista: crearNotificador(wsp, env), plantillaInicio: env.WSP_TEMPLATE_INICIO || "",
+    transcribir: stt.configurado(env) ? async (mediaId) => { const m = await wsp.descargarMedia(mediaId); return stt.transcribir(m.buffer, m.mime, env); } : null };
+}
+
 /** Avisos al especialista: WhatsApp + webhooks ya existentes. Por WhatsApp primero va el resumen completo como texto
  *  (funciona si el especialista le escribió al asistente en las últimas 24 h); si rebota (ventana cerrada), la plantilla
  *  aprobada WSP_TEMPLATE_DERIVACION (nombre, teléfono, urgencia, link). Cada fallo se registra sin datos personales.
@@ -226,4 +267,4 @@ function crearHandler(depsOverride) {
   };
 }
 
-module.exports = { manejarEntrante, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
+module.exports = { manejarEntrante, retomar, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
