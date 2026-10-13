@@ -1,6 +1,6 @@
 // Panel de revisión del canal WhatsApp (solo lectura): conversaciones guardadas, cada respuesta del asistente y el registro
 // de eventos (qué llegó, de quién, qué se hizo). Protegido con autenticación básica del navegador: usuario PANEL_USUARIO
-// (por defecto "iasapre") y contraseña PANEL_SECRET (obligatoria). Sin PANEL_SECRET el panel responde 503.
+// (por defecto "iasapre") y contraseña PANEL_SECRET; si no existe, vale ASIGNAR_SECRET. Sin ninguna de las dos responde 503.
 // URL: https://iasapre-chat.netlify.app/.netlify/functions/panel  (?tel=569…  detalle · ?eventos=1  registro)
 // Contiene datos de salud: nunca se indexa, no se cachea y no se envía a terceros.
 const crypto = require("crypto");
@@ -8,6 +8,8 @@ const { fmtCL } = require("./prompt_whatsapp.js");
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const hora = (t) => { try { const d = typeof t === "number" ? new Date(t) : new Date(String(t)); return isNaN(d) ? String(t || "") : d.toLocaleString("es-CL", { timeZone: "America/Santiago", hour12: false }); } catch (e) { return String(t || ""); } };
 const igual = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
+/** Contraseña del panel: PANEL_SECRET; si no está, se usa ASIGNAR_SECRET (ya cargado en Netlify) para no depender de otra variable. */
+const clave = (env) => env.PANEL_SECRET || env.ASIGNAR_SECRET || "";
 const HEAD = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" };
 const CSS = "body{font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif;margin:0;background:#f4f8ff;color:#0d1421;font-size:16px}header{background:#2f5fd8;color:#fff;padding:12px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}header a{color:#fff;text-decoration:none;font-weight:600}main{padding:12px 16px;max-width:980px;margin:0 auto}table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #e6edf8;vertical-align:top}th{background:#eef3ff;font-size:14px}tr:hover td{background:#fafcff}.b{display:inline-block;padding:2px 8px;border-radius:999px;font-size:13px;background:#e6edf8}.b.der{background:#e96f9a;color:#fff}.b.ok{background:#69cbc1;color:#0d1421}.b.no{background:#ffd9d9}.chat{display:flex;flex-direction:column;gap:8px}.m{max-width:80%;padding:10px 12px;border-radius:14px;white-space:pre-wrap;line-height:1.35}.u{align-self:flex-end;background:#d9fdd3;border-bottom-right-radius:4px}.a{align-self:flex-start;background:#fff;border-bottom-left-radius:4px;border:1px solid #e6edf8}.t{font-size:12px;color:#667;margin-top:4px}.box{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;border:1px solid #e6edf8}small{color:#667}@media(max-width:600px){th:nth-child(4),td:nth-child(4){display:none}}";
 const pagina = (titulo, cuerpo) => `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(titulo)} · IAsapre</title><style>${CSS}</style></head><body><header><a href="?">Conversaciones</a><a href="?eventos=1">Eventos</a><small style="color:#dfe8ff">Asistente WhatsApp +56 9 5373 0030 · solo lectura</small></header><main>${cuerpo}</main></body></html>`;
@@ -19,7 +21,7 @@ function autorizado(event, env) {
   const m = /^Basic (.+)$/.exec(h); if (!m) return false;
   let dec = ""; try { dec = Buffer.from(m[1], "base64").toString("utf8"); } catch (e) { return false; }
   const i = dec.indexOf(":"); if (i < 0) return false;
-  return igual(dec.slice(0, i), env.PANEL_USUARIO || "iasapre") && igual(dec.slice(i + 1), env.PANEL_SECRET);
+  return igual(dec.slice(0, i), env.PANEL_USUARIO || "iasapre") && igual(dec.slice(i + 1), clave(env));
 }
 
 function vistaLista(convs) {
@@ -46,7 +48,7 @@ function crearHandler(depsOverride) {
   return async function handler(event) {
     const env = (depsOverride && depsOverride.env) || process.env;
     if (event.httpMethod !== "GET") return { statusCode: 405, headers: HEAD, body: "Método no permitido" };
-    if (!env.PANEL_SECRET) return { statusCode: 503, headers: HEAD, body: pagina("Panel", "<div class=box>Falta configurar <code>PANEL_SECRET</code> (y opcionalmente <code>PANEL_USUARIO</code>) en Netlify → Environment variables, y redeployar.</div>") };
+    if (!clave(env)) return { statusCode: 503, headers: HEAD, body: pagina("Panel", "<div class=box>Falta configurar <code>PANEL_SECRET</code> (o <code>ASIGNAR_SECRET</code>) en Netlify → Environment variables, y redeployar.</div>") };
     if (!autorizado(event, env)) return noAutorizado();
     let store = depsOverride && depsOverride.store;
     if (!store) { const st = require("./store.js"); st.conectar(event); store = { listar: st.listarConvs, obtener: st.getConv, eventos: st.listarEventos }; }

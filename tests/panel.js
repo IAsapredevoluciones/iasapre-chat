@@ -25,7 +25,12 @@ const b64 = (s) => Buffer.from(s).toString("base64");
   r = await H({ httpMethod: "GET", headers: auth, queryStringParameters: { tel: "56900000000" } }); ok(r.statusCode === 404, "número desconocido → 404");
   r = await H({ httpMethod: "GET", headers: auth, queryStringParameters: { eventos: "1" } });
   ok(r.statusCode === 200 && /asignacion_invalida/.test(r.body) && /app\.iasapre\.cl/.test(r.body) && /\+56 9 8883 0767/.test(r.body) && /lead → <a href="\?tel=56990156640"/.test(r.body), "eventos listados con origen, tipo y lead");
-  const H2 = P.crearHandler({ store, env: {} }); r = await H2({ httpMethod: "GET", headers: auth, queryStringParameters: {} }); ok(r.statusCode === 503 && /PANEL_SECRET/.test(r.body), "sin PANEL_SECRET → 503 con instrucción");
+  const H2 = P.crearHandler({ store, env: {} }); r = await H2({ httpMethod: "GET", headers: auth, queryStringParameters: {} }); ok(r.statusCode === 503 && /PANEL_SECRET/.test(r.body), "sin PANEL_SECRET ni ASIGNAR_SECRET → 503 con instrucción");
+  const H3 = P.crearHandler({ store, env: { ASIGNAR_SECRET: "sec-asignar" } });
+  r = await H3({ httpMethod: "GET", headers: { authorization: "Basic " + b64("iasapre:sec-asignar") }, queryStringParameters: {} }); ok(r.statusCode === 200, "sin PANEL_SECRET, ASIGNAR_SECRET sirve de contraseña");
+  r = await H3({ httpMethod: "GET", headers: auth, queryStringParameters: {} }); ok(r.statusCode === 401, "con ASIGNAR_SECRET de respaldo, otra contraseña no entra");
+  const H4 = P.crearHandler({ store, env: { ASIGNAR_SECRET: "sec-asignar", PANEL_SECRET: "clave-panel" } });
+  r = await H4({ httpMethod: "GET", headers: { authorization: "Basic " + b64("iasapre:sec-asignar") }, queryStringParameters: {} }); ok(r.statusCode === 401, "si existe PANEL_SECRET, ASIGNAR_SECRET ya no sirve");
   r = await H({ httpMethod: "POST", headers: auth, queryStringParameters: {} }); ok(r.statusCode === 405, "POST → 405");
   // registro de eventos desde el webhook real (store en memoria)
   process.env.WSP_APP_SECRET = "sec";

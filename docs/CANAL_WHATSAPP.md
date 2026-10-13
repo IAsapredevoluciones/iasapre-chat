@@ -56,7 +56,7 @@ Meta Cloud API ──POST──▶ netlify/functions/whatsapp.js  (GET = verific
 8. **Prueba**: mandar una asignación de prueba con tu propio número como lead → debes recibir la apertura; responder → el asistente conversa; escribir "quiero hablar con una persona" → derivación en el WhatsApp del especialista, CRM y Discord. Revisar *Functions → whatsapp* en Netlify para ver los logs (sin datos personales).
 
 ## Cómo revisar lo que responde el asistente
-Panel de solo lectura: **https://iasapre-chat.netlify.app/.netlify/functions/panel** (usuario `iasapre`, contraseña = `PANEL_SECRET` en Netlify; el navegador la pide una vez). Muestra:
+Panel de solo lectura: **https://iasapre-chat.netlify.app/.netlify/functions/panel** (usuario `iasapre`, contraseña = `PANEL_SECRET` en Netlify o, si no existe, `ASIGNAR_SECRET`; el navegador la pide una vez). Muestra:
 - **Conversaciones**: cada persona (nombre, teléfono, lead de la plataforma si lo hay, estado en asesoría/derivada, turnos, última actividad). Al abrir una, el chat completo con cada respuesta del asistente, hora de Chile, si venía de audio y si el envío falló.
 - **Eventos** (`?eventos=1`): registro propio de todo lo que llega al webhook y al endpoint `asignar`: tipo (`conversacion`, `asignacion` abierta/retomada, `asignacion_invalida`, `ignorado` por otro número/sin texto/duplicado, `audio_*`, `reinicio`, `error`), de quién, si se envió respuesta y si derivó. Sirve para saber si una asignación de la plataforma llegó y qué pasó con ella, sin depender de los logs de Netlify (que solo guardan 24 h y no muestran teléfonos).
 - Nunca se guardan audios ni texto en el registro de eventos (solo en la conversación). El panel no se cachea ni se indexa.
