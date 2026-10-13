@@ -422,7 +422,7 @@ function concept(q,id){let b=0;const has=k=>C[k].test(q);
  const DUENO=/(de quien es|quien es (el )?due|duen[oa]s?|propias?|propios|pertenec|que clinicas (son|tiene|hay)|clinicas (de|que tiene) cada|grupo economico|grupos economicos)/.test(q);
  if(DUENO){if(id==="grupos")b+=7;if(id==="mejor_clinica"||id==="bajar_costo")b-=7;}
  if(/urgen/.test(q)){if(id==="urgencia_red"&&/(clinica|donde|hospital|red |a que|cual)/.test(q)&&!/(ley|cheque|pagare|garantia|prestamo)/.test(q))b+=7;if(id==="mejor_clinica")b-=7;}
- if(/urgencia|emergencia/.test(q)){if(id==="urgencia_red"&&/(que|cual|a que|a donde|donde|voy|ir|clinica|red|preferente|integral)/.test(q)&&!/ley/.test(q))b+=5;if(id==="urgencia_ley"&&/(ley|prestamo|cheque|pagare|garantia|riesgo vital|cuotas|estabiliz|cubre)/.test(q))b+=5;if(id==="urgencia"&&/(ley|clinica|red|voy|ir|donde|cual)/.test(q))b-=4;}
+ if(/urgencia|emergencia/.test(q)){if(id==="urgencia_red"&&/(que|cual|a que|a donde|donde|voy|ir|clinica|red|preferente|integral)/.test(q)&&!/(ley|cheque|pagare|garantia|prestamo)/.test(q))b+=5;if(id==="urgencia_ley"&&/(ley|prestamo|cheque|pagare|garantia|riesgo vital|cuotas|estabiliz|cubre)/.test(q))b+=5;if(id==="urgencia"&&/(ley|clinica|red|voy|ir|donde|cual)/.test(q))b-=4;}
  if(id==="isapre_info"&&["banmedica","colmena","consalud","cruzblanca","esencial","masvida"].some(w=>fz(q,w))&&/(que tal|es buena|es mala|pros|ventaja|como es|opinion|me dices|beneficio|recomiend|conviene)/.test(q))b+=6;
  if(id==="cautivo"&&has("ALZA"))b+=3+(has("COND")?1:0);
  if(id==="bajar_costo"&&(has("PAGO")||/cobra/.test(q))&&!has("ALZA")&&!has("DEUDA")&&!has("CIEN")&&!has("TRAT")&&!has("HOSP"))b+=1.5+(/\b(gano|sueldo|renta)\b/.test(q)?2:0);
@@ -460,6 +460,16 @@ function concept(q,id){let b=0;const has=k=>C[k].test(q);
  if(MH.test(q)&&has("MHQ")&&id==="salud_mental")b+=5;
  if(MH.test(q)&&id==="salud_mental")b+=2;
  if(MH.test(q)&&/cargas_kb|intentar_otra|cambio_isapre/.test(id))b-=3;
+ // --- reglas blind5 (12-oct-2026): tiempo en la isapre, cautivos, urgencia vital, familiares mencionados de paso, Fonasa y cargas nuevas
+ const TIEMPO=/\bllevo\b.*\b(mes|meses|ano|anos|anio|anios|semanas?)\b|\b(hace|recien)\b.*\b(mes|meses|semanas?)\b/.test(q);
+ if(TIEMPO&&has("AFILIAR")&&!has("COND")){if(id==="cambio_isapre")b+=3;if(id==="intentar_otra")b-=2;}
+ if(has("ALZA")&&/(atrapad|cautiv|no (me )?puedo (ir|irme|cambiar|cambiarme|salir)|no puedo irme|no tengo (como|donde) (irme|cambiarme)|me tienen (agarrad|amarrad))/.test(q)){if(id==="cautivo")b+=6;if(id==="intentar_otra")b-=4;}
+ const VITAL=/(infarto|accidente|atropell|derrame|ataque (al corazon|cerebral)|convulsion|desmay|ambulancia|riesgo vital|me pasa algo grave|paro cardiaco)/.test(q),TRASLADO=/(me llevan|me llevaron|lo llevaron|la llevaron|cualquier clinica|otra clinica|clinica mas cercana|la clinica que este|a la que este mas cerca)/.test(q);
+ if(VITAL&&(TRASLADO||/(cubre|cubren|cobertura|pagan|me atienden)/.test(q))){if(id==="urgencia_ley")b+=6;if(id==="libre_vs_pref")b-=5;if(id==="tratamiento"||id==="mejor_clinica")b-=3;}
+ const CARGA_ACCION=/(agreg|inclu|meter|poner|incorpor|sacar|quitar|\bcargas?\b|nacio|nacer|recien nacid|sigue siendo|puedo (tener|dejar))/.test(q);
+ if(/urgen|emergencia|fonasa/.test(q)&&id==="cargas_kb"&&!CARGA_ACCION)b-=5;
+ if(/fonasa/.test(q)&&/(tramo|gratis|me vaya|irme|pasarme|volver|cambiarme a fonasa|conviene)/.test(q)){if(id==="fonasa")b+=3;if(id==="cobran")b-=3;}
+ if(has("FAMILIA")&&/(agreg|inclu|meter|poner|incorpor|nacio|nacer|recien nacid)/.test(q)){if(id==="cargas_kb")b+=4.5;if(id==="cautivo"&&!/(carta|adecuacion|reajuste|alza|precio base|todos los anos)/.test(q))b-=4;}
  return b;}
 const EMO=/(desesperad|angustiad|preocupad|miedo|asustad|no se que hacer|estresad|chat[oa] de|estoy hart[oa]|hart[oa] de|indignad|enojad|rabia|estafad|abuso|injusto|me siento mal|lloran|triste)/;
 const VAGO=/^(ayuda|ayudame|necesito ayuda|consulta|una consulta|tengo (una )?(duda|consulta|pregunta)|duda|pregunta|info|informacion|hola necesito ayuda|me ayudas|puedes ayudarme|tengo un problema|un problema|\?+|ehh?|mmm+|oye)$/;

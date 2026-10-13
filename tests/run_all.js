@@ -13,6 +13,7 @@ const T=[
  {f:"blind2.js",nm:"A ciegas 2 (17)",ok:o=>pct(o)>=95},
  {f:"blind3.js",nm:"A ciegas 3 (20)",ok:o=>pct(o)>=95},
  {f:"blind4.js",nm:"A ciegas 4 · temas nuevos (21)",ok:o=>pct(o)>=95},
+ {f:"blind5.js",nm:"A ciegas 5 · cambio/alzas/urgencia/licencias/seguros/Fonasa/cargas (25)",ok:o=>pct(o)>=95},
  {f:"mh_sweep.js",nm:"Cortafuegos salud mental",ok:o=>num(/(\d+) inconsistencias/,o)===0},
  {f:"audit_sweep.js",nm:"Auditoría de cifras prohibidas",ok:o=>num(/(\d+) hallazgos/,o)===0},
  {f:"uf.js",nm:"UF dinámica (motor: setUF/uf, rango y fallback)",ok:o=>/UF dinámica OK/.test(o)},
