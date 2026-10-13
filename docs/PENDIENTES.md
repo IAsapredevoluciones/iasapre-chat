@@ -49,3 +49,4 @@
 - [ ] Audios: crear clave en https://platform.openai.com/api-keys (o Deepgram) y cargar `OPENAI_API_KEY` en Netlify + Trigger deploy; sin eso el bot pide el mensaje por escrito.
 - [ ] Panel: cargar `PANEL_SECRET` (contraseña que tú elijas) en Netlify + Trigger deploy; luego entrar a https://iasapre-chat.netlify.app/.netlify/functions/panel con usuario `iasapre`.
 - [ ] Rafa: las asignaciones por WhatsApp entre los dos números de la Cloud API no se entregan; usar el endpoint `asignar`.
+- [ ] **Netlify sin créditos (13-oct, 15:30)**: el plan Free da 300 créditos/mes y cada deploy de producción cuesta 15; los 20 deploys de hoy los agotaron. El sitio publicado (v6.9) sigue en línea con 30 créditos operativos, pero **no se publica nada nuevo hasta el 11-nov o hasta pasar a un plan pagado** (Team → Usage & billing → Upgrade). v6.10 (panel + registro de eventos) quedó en `main` sin desplegar. Regla desde ahora: agrupar cambios y desplegar pocas veces.
