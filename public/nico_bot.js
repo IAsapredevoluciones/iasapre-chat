@@ -3,7 +3,8 @@
  * Requiere (opcional) kb_offline.js cargado antes: usa KB_OFF como base estática de respaldo.
  */
 (function(root){
-const WSP_H="+56 9 8538 0357", UF=41000, TOPE_UF=90;
+const WSP_H="+56 9 8538 0357", TOPE_UF=90, UF_DEFAULT=41000; let UF=UF_DEFAULT; // UF de respaldo; la página la actualiza con setUF() (mindicador.cl)
+function setUF(v){const n=Number(v);if(isFinite(n)&&n>=30000&&n<=80000)UF=Math.round(n*100)/100;return UF;}
 const fmt=n=>"$"+Math.round(n).toLocaleString("es-CL");
 const TYPO=[[/\bkeria\b/g,"queria"],[/\bkiero\b/g,"quiero"],[/\bcombiene\b/g,"conviene"],[/\bxq\b|\bpq\b/g,"porque"],[/\bk onda\b/g,"que onda"],[/\bkn\b/g,"con"],[/\bq\b/g,"que"],[/\bwena\b/g,"hola"],[/\bisapres?\b/g,m=>m],[/\bnose\b/g,"no se"],[/\bxfa\b|\bpls\b/g,"porfa"]];
 const norm=s=>TYPO.reduce((a,[r,v])=>a.replace(r,v),String(s||"").toLowerCase()).normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/(\d)[.,](\d)/g,"$1$2").replace(/[^a-z0-9%$\s]/g," ").replace(/\s+/g," ").trim();
@@ -562,6 +563,6 @@ function waTexto(){if(!S)return "Hola, quiero revisar mi plan de isapre.";const 
  const bits=[isapreN(p)!=="tu isapre"?"estoy en "+isapreN(p):"",p.clinica?"me interesa "+p.clinica.n:"",p.renta?"renta aprox. "+fmt(p.renta):"",p.cargas?"cargas: "+p.cargas:""].filter(Boolean).join(", ");
  const base=L.comparacion?"Pedí una comparación de planes en el asistente de IAsapre":"Estuve conversando con el asistente de IAsapre";
  return "Hola, soy "+(p.nombre||"un usuario")+". "+base+(bits?" ("+bits+")":"")+". "+((L.escalo||!p.afiliable)?"Me gustaría hablar con una persona.":"¿Me pueden ayudar a avanzar?");}
-root.NicoBot={handoff,waTexto,_dbg:(txt)=>{const q=norm(txt).replace(FILL," ").replace(/\s+/g," ").trim();return INT.map(it=>[it.id,+(score(q,it.k)*(it.w||1)+concept(q,it.id)).toFixed(2)]).filter(x=>x[1]!==0).sort((a,b)=>b[1]-a[1]).slice(0,6);},start:startG,lead,hablado,reply,clasificar,perfil,guard,_state:()=>S,_data:{ISAPRES,CONDS,INT}};
+root.NicoBot={handoff,waTexto,setUF,uf:()=>UF,UF_DEFAULT,_dbg:(txt)=>{const q=norm(txt).replace(FILL," ").replace(/\s+/g," ").trim();return INT.map(it=>[it.id,+(score(q,it.k)*(it.w||1)+concept(q,it.id)).toFixed(2)]).filter(x=>x[1]!==0).sort((a,b)=>b[1]-a[1]).slice(0,6);},start:startG,lead,hablado,reply,clasificar,perfil,guard,_state:()=>S,_data:{ISAPRES,CONDS,INT}};
 })(typeof window!=="undefined"?window:globalThis);
 if(typeof module!=="undefined")module.exports=globalThis.NicoBot;

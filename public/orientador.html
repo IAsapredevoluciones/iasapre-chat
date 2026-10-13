@@ -46,6 +46,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--az);box-
 .inp textarea{flex:1;resize:none;height:44px;border-radius:10px}
 .inp #mic{background:var(--g1);color:var(--gd);font-size:18px;padding:0 12px}.inp #mic.on{background:#ef4444;color:#fff;animation:pulse 1s infinite}@keyframes pulse{50%{opacity:.6}}
 .inp button{background:var(--az);color:#fff;border:none;border-radius:10px;padding:0 16px;font-weight:800;cursor:pointer}
+.dbg[hidden]{display:none}
 .dbg{margin-top:12px;background:#fff;border:1px dashed #cbd5e1;border-radius:12px;padding:10px 14px;font-size:12px;color:#475569}
 .tag{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;margin-right:6px}
 .t-no{background:#fee2e2;color:#991b1b}.t-res{background:#fef3c7;color:#92400e}.t-ev{background:#e0f2fe;color:#075985}.t-ok{background:#dcfce7;color:#166534}.t-pr{background:#ede9fe;color:#5b21b6}
@@ -83,13 +84,22 @@ footer{text-align:center;font-size:12px;color:#9ca3af;padding:24px 20px}
     <div id="msgs"></div>
     <div class="inp"><textarea id="q" placeholder="Escribe tu duda como te salga…"></textarea><button id="mic" type="button" title="Háblame" aria-label="Hablar">🎤</button><button onclick="send()" id="send">➤</button></div>
   </div>
-  <div class="dbg" id="dbg"></div>
+  <div class="dbg" id="dbg" hidden></div>
 </section>
 <footer>IAsapre · iasapre.cl · Orientación en salud previsional. No reemplaza tu contrato ni una recomendación médica.</footer>
 <script src="/kb_offline.js"></script>
 <script src="/nico_bot.js"></script>
 <script>
-const WSP="56985380357";const NETLIFY=/netlify\.app$|iasapre\.cl$/.test(location.hostname);
+const WSP="56985380357";const NETLIFY=/netlify\.app$|iasapre\.cl$/.test(location.hostname);const DEBUG=/[?&]debug=1(&|$)/.test(location.search);
+/* ---- UF del día: mindicador.cl (Banco Central) con caché local por día; si falla, el motor usa su valor de respaldo ---- */
+const UF_API="https://mindicador.cl/api/uf",UF_KEY="iasapre_uf";let ufInfo={valor:null,origen:"pendiente"};
+async function cargarUF(){const hoy=new Date().toISOString().slice(0,10);
+ try{const c=JSON.parse(localStorage.getItem(UF_KEY)||"null");if(c&&c.fecha===hoy&&Number(c.valor)>0&&NicoBot.setUF(c.valor)===Number(c.valor))return {valor:Number(c.valor),origen:"cache"};}catch(e){}
+ try{const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),6000);const r=await fetch(UF_API,{signal:ctrl.signal});clearTimeout(to);if(!r.ok)throw new Error("HTTP "+r.status);
+  const d=await r.json();const v=Number(d&&d.serie&&d.serie[0]&&d.serie[0].valor);if(!(v>0))throw new Error("sin valor");if(NicoBot.setUF(v)!==v)throw new Error("fuera de rango");
+  try{localStorage.setItem(UF_KEY,JSON.stringify({valor:v,fecha:hoy}));}catch(e){}return {valor:v,origen:"api"};}
+ catch(e){return {valor:NicoBot.uf(),origen:"fallback"};}}
+const ufReady=cargarUF().then(i=>{ufInfo=i;paintDbg();return i;});
 const $=id=>document.getElementById(id);const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let lead={},busy=false,log=[];
 function scrollDown(){const b=$("msgs");const go=()=>{b.scrollTop=b.scrollHeight;};go();setTimeout(go,60);setTimeout(go,300);try{requestAnimationFrame(go);}catch(e){}if(window.innerWidth<820){try{$("q").scrollIntoView({block:"nearest"});}catch(e){}}}
@@ -108,7 +118,7 @@ function payload(stage){let H=null;try{H=NicoBot.handoff();}catch(e){}H=H||{tier
  return {name:lead.nombre||"",phone:lead.telefono||"",email:lead.email||"",preference:String(lead.contacto_pref||"WhatsApp").toLowerCase(),stage,tier:H.tier,score:H.score,
   question:full?H.pregunta:"(formulario recibido)",resumen:full?H.resumen:H.resumenBasico,nota_interna:H.nota,transcript:full?log.slice(-12):[],source:"orientador",page:location.href,timestamp:new Date().toISOString(),hp:""};}
 async function notify(stage){if(!NETLIFY||sent.has(stage))return;sent.add(stage);try{const r=await fetch("/.netlify/functions/contact",{method:"POST",keepalive:true,headers:{"Content-Type":"application/json"},body:JSON.stringify(payload(stage))});if(!r.ok)sent.delete(stage);}catch(e){sent.delete(stage);}paintDbg();}
-function paintDbg(){const g=$("gen");if(g&&!g.dataset.base)g.dataset.base=g.innerHTML;const s=$("sentv");if(s)s.textContent=[...sent].join(" · ")||"—";}
+function paintDbg(){const g=$("gen");if(g&&!g.dataset.base)g.dataset.base=g.innerHTML;const s=$("sentv");if(s)s.textContent=[...sent].join(" · ")||"—";const u=$("ufv");if(u)u.textContent=NicoBot.uf().toLocaleString("es-CL")+" ("+ufInfo.origen+")";}
 /* ---- re-enganche si se queda en silencio (una sola vez por tipo) ---- */
 const IDLE=window.__IDLE||{wa:40000,cmp:75000};let idleT=null;const nudged={};
 function idle(){clearTimeout(idleT);let L=null;try{L=NicoBot.lead();}catch(e){}if(!L)return;let key=null,ms=0,fn=null;
@@ -116,11 +126,11 @@ function idle(){clearTimeout(idleT);let L=null;try{L=NicoBot.lead();}catch(e){}i
  else if(!L.comparacion&&(L.tier==="tibio"||L.tier==="tibio_alto")){key="cmp";ms=IDLE.cmp;fn=()=>{bubble("a","¿Sigues por ahí? Si quieres, te dejo armada la comparación con las otras isapres: es gratis y sin compromiso.");chips(["Sí, quiero la comparación","¿Qué miro al comparar?"],false);};}
  if(!key||nudged[key])return;idleT=setTimeout(()=>{if(busy||(typeof escuchando!=="undefined"&&escuchando))return;nudged[key]=1;fn();},ms);}
 async function decir(texto,ch,escalar){const partes=texto.split(/\n\n+/);for(let i=0;i<partes.length;i++){const t=typing();await sleep(Math.min(2200,500+partes[i].length*9));t.remove();bubble("a",partes[i]);}chips(ch,escalar);}
-async function enviar(e){e.preventDefault();lead=Object.fromEntries(new FormData($("f")).entries());
+async function enviar(e){e.preventDefault();lead=Object.fromEntries(new FormData($("f")).entries());await Promise.race([ufReady,sleep(1500)]);
  $("hero").style.display="none";$("res").classList.add("on");window.scrollTo(0,0);$("wa").href="https://wa.me/"+WSP+"?text="+encodeURIComponent(waText());
  const r=NicoBot.start(lead);const c=NicoBot._state().p.clasif;notify("form");
  const tg={no_afiliable:"t-no",restringible:"t-res",evaluar:"t-ev",protegido:"t-pr",sin_impacto:"t-ok"}[c.nivel];
- $("dbg").innerHTML=`<b>Panel de prueba (no lo ve el usuario final)</b><br><span class="tag ${tg}">${c.nivel}</span>${c.hallazgos.map(h=>h.nombre).join(" · ")||"sin hallazgos"} — ${c.resumen}<br><span id="gen"></span><br><b>Avisos enviados al equipo:</b> <span id="sentv">—</span>`;
+ $("dbg").innerHTML=`<b>Panel de prueba (no lo ve el usuario final)</b><br><span class="tag ${tg}">${c.nivel}</span>${c.hallazgos.map(h=>h.nombre).join(" · ")||"sin hallazgos"} — ${c.resumen}<br><span id="gen"></span><br><b>Avisos enviados al equipo:</b> <span id="sentv">—</span><br><b>UF usada:</b> <span id="ufv">—</span>`;$("dbg").hidden=!DEBUG;
  busy=true;$("st").textContent="escribiendo…";await decir(r.t,r.chips);$("st").textContent="en línea · asesor de IAsapre";busy=false;paintDbg();idle();}
 async function motorExterno(q){if(!NETLIFY)return null;try{const ctrl=new AbortController();setTimeout(()=>ctrl.abort(),12000);
  const r=await fetch("/.netlify/functions/chat",{method:"POST",signal:ctrl.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:[{role:"user",content:"Contexto: "+JSON.stringify(lead)+"\nPregunta: "+q+"\nResponde como Nico de IAsapre, breve y cercano. No uses la etiqueta [[CONTACTO]]."}]})});
