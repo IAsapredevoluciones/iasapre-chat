@@ -74,6 +74,12 @@ const b64 = (s) => Buffer.from(s).toString("base64");
   const evs = await S.listarEventos(10);
   ok(r.statusCode === 200 && evs.length >= 2 && evs.some((e) => e.tipo === "asignacion_invalida" && e.de === "56988830767" && e.nombre === "iasapre cl") && evs.some((e) => e.tipo === "conversacion" && e.de === "56977770000" && e.enviado), "el webhook registra un evento por mensaje (asignación inválida y conversación): " + JSON.stringify(evs.map((e) => e.tipo)));
   ok(!JSON.stringify(evs).includes("Hola, tienes"), "los eventos no guardan el texto de los mensajes");
+  const Hg = P.crearHandler({ store, env: { PANEL_SECRET: "clave-panel" }, vigia: async () => ({ revisado: "2026-10-14T22:40:00Z", conexion: { ok: false, error: "190 Session expired" }, retomadas: 0 }) });
+  r = await Hg({ httpMethod: "POST", headers: auth, queryStringParameters: {}, body: "accion=vigia" });
+  ok(r.statusCode === 200 && /Vigía ejecutado: conexión con problemas/.test(r.body) && /WhatsApp desconectado/.test(r.body) && /190 Session expired/.test(r.body), "Revisar ahora ejecuta el vigía y muestra el resultado");
+  const Hx = P.crearHandler({ store, env: { PANEL_SECRET: "clave-panel" }, vigia: async () => { throw new Error("boom"); } }); const e0 = console.error; console.error = () => {};
+  r = await Hx({ httpMethod: "POST", headers: auth, queryStringParameters: {}, body: "accion=vigia" }); console.error = e0;
+  ok(r.statusCode === 200 && /Error al ejecutar el vigía: Error: boom/.test(r.body), "error del vigía visible en el panel");
   if (fails.length) { console.log("✘ Panel: " + fails.length + " fallas\n - " + fails.join("\n - ")); process.exit(1); }
   console.log("Panel OK: autenticación básica, lista, detalle escapado, eventos, registro desde el webhook");
 })();

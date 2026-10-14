@@ -28,11 +28,12 @@ function autorizado(event, env) {
 const pendiente = (c) => { const h = c.historial || [], u = h[h.length - 1]; return !!(u && (u.role === "user" || (!c.derivado && u.enviado === false))); };
 
 /** Aviso de salud del canal (lo escribe el vigía cada 10 min). */
+const btnVigia = `<form method="post" action="?" style="display:inline"><input type="hidden" name="accion" value="vigia"><button class="b" style="cursor:pointer;border:0;background:#2f5fd8;color:#fff">Revisar ahora</button></form>`;
 function bannerSalud(salud) {
-  if (!salud) return "";
+  if (!salud) return `<div class=box><small>El vigía aún no registra una revisión.</small> ${btnVigia}</div>`;
   const cuando = salud.revisado ? hora(salud.revisado) : "";
-  if (salud.conexion && salud.conexion.ok === false) return `<div class=box style="border:2px solid #e96f9a;background:#fff0f4"><b>⚠️ WhatsApp desconectado</b> desde ${esc(hora(salud.caidaDesde || salud.revisado))}: ${esc(salud.conexion.error || "")}.<br>El asistente no puede enviar mensajes. Suele deberse a que Meta pidió confirmar la cuenta de desarrollador o a que venció el token (WSP_TOKEN). <small>Última revisión: ${esc(cuando)}</small></div>`;
-  return `<div class=box><small>✅ Conexión con WhatsApp OK · revisión automática ${esc(cuando)}${salud.retomadas ? ` · ${salud.retomadas} conversación(es) retomadas en la última revisión` : ""}${salud.sinWebhookDesde ? ` · ⚠️ Meta no envía mensajes desde ${esc(hora(salud.sinWebhookDesde))}` : ""}</small></div>`;
+  if (salud.conexion && salud.conexion.ok === false) return `<div class=box style="border:2px solid #e96f9a;background:#fff0f4"><b>⚠️ WhatsApp desconectado</b> desde ${esc(hora(salud.caidaDesde || salud.revisado))}: ${esc(salud.conexion.error || "")}.<br>El asistente no puede enviar mensajes. Suele deberse a que Meta pidió confirmar la cuenta de desarrollador o a que venció el token (WSP_TOKEN). <small>Última revisión: ${esc(cuando)}</small> ${btnVigia}</div>`;
+  return `<div class=box><small>✅ Conexión con WhatsApp OK · revisión automática ${esc(cuando)}${salud.retomadas ? ` · ${salud.retomadas} conversación(es) retomadas en la última revisión` : ""}${salud.sinWebhookDesde ? ` · ⚠️ Meta no envía mensajes desde ${esc(hora(salud.sinWebhookDesde))}` : ""}</small> ${btnVigia}</div>`;
 }
 const btnRetomar = (c, aviso) => `<form method="post" action="?tel=${esc(c.telefono)}" style="display:inline"><input type="hidden" name="accion" value="retomar"><button class="b" style="cursor:pointer;border:0;background:#2f5fd8;color:#fff">${aviso ? "Retomar (responder ahora)" : "Retomar"}</button></form>`;
 
@@ -112,6 +113,12 @@ function crearHandler(depsOverride) {
           for (const d of leads) { let j = {}; try { j = await asignar(d); } catch (e) { j = { ok: false, error: String(e && e.message) }; } res.push({ nombre: d.nombre, telefono: d.telefono, ok: !!j.ok, accion: j.accion, enviado: j.enviado, error: j.error || (j.ok ? "" : j.tipo) }); }
           console.log("panel asignar", JSON.stringify({ n: res.length, ok: res.filter((r) => r.ok).length })); // sin datos personales
           return { statusCode: 200, headers: HEAD, body: vistaAsignar(res) };
+        }
+        if (accion === "vigia") { // ejecutar el vigía a mano y mostrar el resultado (o el error)
+          let salud = null, err = "";
+          try { const V = (depsOverride && depsOverride.vigia) || (() => { const vc = require("./vigia_core.js"); return vc.ejecutar(vc.depsReales()); }); salud = await V(); } catch (e) { err = String((e && e.stack) || e).slice(0, 600); console.error("panel vigia", err); }
+          const msg = err ? "Error al ejecutar el vigía: " + err : `Vigía ejecutado: conexión ${salud && salud.conexion && salud.conexion.ok ? "OK" : "con problemas"}${salud && salud.retomadas ? `, ${salud.retomadas} conversación(es) retomadas` : ""}.`;
+          return { statusCode: 200, headers: HEAD, body: vistaLista(await store.listar(), msg, salud) };
         }
         if (!["retomar", "reenviar", "recuperar"].includes(accion) || !q.tel) return { statusCode: 400, headers: HEAD, body: pagina("Acción", "<div class=box>Acción no reconocida. <a href='?'>Volver</a></div>") };
         const retomar = (depsOverride && depsOverride.retomar) || (async (tel, op) => { const A = require("./wsp_agent.js"); return A.retomar(tel, A.depsReales(event), op); });
