@@ -43,6 +43,9 @@ const ext=W.parseAsignacion("Hola Asesoría IAsapre, tienes un nuevo lead asigna
 ok(ext&&ext.edad==="28"&&ext.isapre==="Banmédica"&&ext.comuna==="Santiago"&&/Cancer de mama/.test(ext.preexistencias)&&ext.tipo==="Orientación"&&/Banmédica \| Renta/.test(ext.resumen)&&ext.telefono==="+56 9 1234 5678","parseAsignacion toma los campos opcionales de la plataforma");
 const A2=require("../netlify/functions/lib/wsp_agent.js");const ctx=A2.contexto({telefono:"56912345678",lead:ext,historial:[],derivado:false});
 ok(/Edad \(formulario\): 28/.test(ctx)&&/Banmédica/.test(ctx)&&/Cancer de mama/.test(ctx)&&/NO AFILIABLES/.test(ctx)&&/sin volver a preguntarlos/.test(ctx),"el contexto para Claude incluye los datos del formulario y la instrucción de no repreguntar");
+// preexistencias primero: consultar y orientar antes de precio/comparar
+for(const k of ["PREEXISTENCIAS PRIMERO","cuándo terminó el tratamiento","tipo 1 o 2","bariátrica","biológico","olvido oncológico","la más restrictiva","Nunca preguntes por salud mental"])ok(W.ROL.includes(k),"rol preexistencias primero incluye: "+k);
+ok(/PREEXISTENCIAS PRIMERO/.test(ctx)&&/antes de hablar de precio/.test(ctx),"el contexto con preexistencias del formulario exige consultarlas primero");
 // no afiliables: regla explícita en el rol y lista + cambio interno en la KB
 for(const k of ["NO AFILIABLES","comparar con otras Isapres NO aplica","cambio de plan interno","Fonasa + seguro complementario","olvido oncológico","un amigo, un familiar"])ok(W.ROL.includes(k),"rol no afiliables incluye: "+k);
 ok(!/difícilmente serán aceptadas/.test(W.ROL),"el rol ya no usa 'difícilmente' para no afiliables");
