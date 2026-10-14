@@ -51,10 +51,12 @@ function vistaEventos(evs) {
 /** Las acciones (POST) solo se aceptan desde el propio panel: bloquea formularios de otros sitios que reutilicen la sesión del navegador. */
 function mismoOrigen(event) {
   const h = event.headers || {};
-  const sfs = h["sec-fetch-site"]; if (sfs && !["same-origin", "none"].includes(sfs)) return false;
-  const o = h.origin; if (o && o !== "null" && event.rawUrl) { try { return new URL(o).host === new URL(event.rawUrl).host; } catch (e) { return false; } }
+  // Sec-Fetch-Site lo pone el navegador y no se puede falsificar desde otra página: es la señal principal.
+  // (Origin llega como "null" en el propio panel porque las páginas se sirven con Referrer-Policy: no-referrer.)
+  const sfs = h["sec-fetch-site"]; if (sfs) return sfs === "same-origin" || sfs === "none";
+  const o = h.origin; if (!o) return true; // clientes sin navegador (curl) con usuario y contraseña
   if (o === "null") return false;
-  return true;
+  try { return !event.rawUrl || new URL(o).host === new URL(event.rawUrl).host; } catch (e) { return false; }
 }
 
 /** Leads pegados en el formulario: JSON (arreglo) o CSV con cabecera nombre,telefono,leadId,renta,region,clinica,cargas,contacto,… */

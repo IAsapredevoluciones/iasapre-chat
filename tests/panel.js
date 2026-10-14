@@ -46,6 +46,10 @@ const b64 = (s) => Buffer.from(s).toString("base64");
   ok(r.statusCode === 403 && llamadas.length === 1, "POST desde otro sitio → 403 y no ejecuta");
   r = await Hr({ httpMethod: "POST", headers: { ...auth, origin: "https://iasapre-chat.netlify.app", "sec-fetch-site": "same-origin" }, queryStringParameters: { tel: "56985380357" }, body: "accion=retomar", rawUrl: "https://iasapre-chat.netlify.app/.netlify/functions/panel?tel=56985380357" });
   ok(r.statusCode === 200 && llamadas.length === 2, "POST desde el propio panel → se ejecuta");
+  r = await Hr({ httpMethod: "POST", headers: { ...auth, origin: "null", "sec-fetch-site": "same-origin" }, queryStringParameters: { tel: "56985380357" }, body: "accion=retomar", rawUrl: "https://iasapre-chat.netlify.app/.netlify/functions/panel?tel=56985380357" });
+  ok(r.statusCode === 200 && llamadas.length === 3, "POST del propio panel con Origin null (no-referrer) → se ejecuta");
+  r = await Hr({ httpMethod: "POST", headers: { ...auth, origin: "null" }, queryStringParameters: { tel: "56985380357" }, body: "accion=retomar" });
+  ok(r.statusCode === 403 && llamadas.length === 3, "Origin null sin Sec-Fetch-Site → 403");
   // Asignar leads desde el panel (JSON y CSV)
   const asignados = []; const Ha = P.crearHandler({ store, env: { PANEL_SECRET: "clave-panel" }, asignar: async (d) => { asignados.push(d); return d.telefono === "+56 9 0000 0000" ? { ok: true, tipo: "asignacion", accion: "abierta", enviado: false } : { ok: true, tipo: "asignacion", accion: "abierta", enviado: true }; } });
   r = await Ha({ httpMethod: "GET", headers: auth, queryStringParameters: { asignar: "1" } }); ok(r.statusCode === 200 && /Asignar y escribirles/.test(r.body) && /<textarea name="leads"/.test(r.body), "formulario de asignación");
