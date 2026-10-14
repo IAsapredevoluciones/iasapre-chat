@@ -21,7 +21,7 @@ const b64 = (s) => Buffer.from(s).toString("base64");
   ok(r.body.indexOf("Camila Rojas") < r.body.indexOf(">Nico<") || !/>Nico</.test(r.body) || true, "orden por actividad");
   r = await H({ httpMethod: "GET", headers: auth, queryStringParameters: { tel: "+56 9 9015 6640" } });
   ok(r.statusCode === 200 && !/<script>alert/.test(r.body) && /&lt;script&gt;alert\(1\)&lt;\/script&gt;/.test(r.body), "detalle escapa HTML del contenido");
-  ok(/audio transcrito/.test(r.body) && /NO ENVIADO/.test(r.body) && /DERIVADA el 13-10-2026 12:55/.test(r.body) && /app\.iasapre\.cl\/\?lead=L-77/.test(r.body) && /Clínica Alemana/.test(r.body), "detalle muestra audio, no enviado, derivación, lead y datos del formulario");
+  ok(/audio transcrito/.test(r.body) && /NO ENTREGADO/.test(r.body) && /DERIVADA el 13-10-2026 12:55/.test(r.body) && /app\.iasapre\.cl\/\?lead=L-77/.test(r.body) && /Clínica Alemana/.test(r.body), "detalle muestra audio, no enviado, derivación, lead y datos del formulario");
   r = await H({ httpMethod: "GET", headers: auth, queryStringParameters: { tel: "56900000000" } }); ok(r.statusCode === 404, "número desconocido → 404");
   r = await H({ httpMethod: "GET", headers: auth, queryStringParameters: { eventos: "1" } });
   ok(r.statusCode === 200 && /asignacion_invalida/.test(r.body) && /app\.iasapre\.cl/.test(r.body) && /\+56 9 8883 0767/.test(r.body) && /lead → <a href="\?tel=56990156640"/.test(r.body), "eventos listados con origen, tipo y lead");
@@ -41,6 +41,8 @@ const b64 = (s) => Buffer.from(s).toString("base64");
   ok(r.statusCode === 200 && llamadas[0] === "56985380357" && /Respondido/.test(r.body) && /hola/.test(r.body), "POST retomar → acción ejecutada y detalle con aviso");
   r = await Hr({ httpMethod: "POST", headers: {}, queryStringParameters: { tel: "56985380357" }, body: "accion=retomar" }); ok(r.statusCode === 401 && llamadas.length === 1, "POST sin credenciales → 401 y no ejecuta");
   r = await Hr({ httpMethod: "POST", headers: auth, queryStringParameters: { tel: "56985380357" }, body: "accion=borrar" }); ok(r.statusCode === 400, "acción desconocida → 400");
+  const ops = []; const Hv = P.crearHandler({ store, env: { PANEL_SECRET: "clave-panel" }, retomar: async (tel, op) => { ops.push(op); return { tipo: "reabierta", enviado: true }; } });
+  r = await Hv({ httpMethod: "POST", headers: auth, queryStringParameters: { tel: "56985380357" }, body: "accion=reenviar" }); ok(r.statusCode === 200 && ops[0] && ops[0].reenviarApertura === true && /Reabierta/.test(r.body), "accion reenviar → retomar con reenviarApertura");
   // CSRF: POST desde otro sitio se rechaza aunque el navegador mande la sesión
   r = await Hr({ httpMethod: "POST", headers: { ...auth, origin: "https://malo.example", "sec-fetch-site": "cross-site" }, queryStringParameters: { tel: "56985380357" }, body: "accion=retomar", rawUrl: "https://iasapre-chat.netlify.app/.netlify/functions/panel?tel=56985380357" });
   ok(r.statusCode === 403 && llamadas.length === 1, "POST desde otro sitio → 403 y no ejecuta");

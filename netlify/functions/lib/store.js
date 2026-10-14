@@ -25,8 +25,9 @@ const claveTurno = (h) => (h && h.id ? "id:" + h.id : (h.role || "") + "|" + (h.
 /** Une el estado guardado (a) con el nuevo (b): historial sin duplicados ordenado por tiempo, derivación "pegajosa", lead fusionado. */
 function fusionar(a, b) {
   if (!a) return b; if (!b) return a;
-  const vistos = new Set(), hist = [];
-  for (const h of [...(a.historial || []), ...(b.historial || [])]) { const k = claveTurno(h); if (vistos.has(k)) continue; vistos.add(k); hist.push(h); }
+  const porClave = new Map(); // el mismo turno en ambos: gana la versión nueva (b), p. ej. con la marca de entrega fallida
+  for (const h of [...(a.historial || []), ...(b.historial || [])]) porClave.set(claveTurno(h), h);
+  const hist = [...porClave.values()];
   hist.sort((x, y) => (x.t || 0) - (y.t || 0));
   const lead = a.lead || b.lead ? { ...(a.lead || {}), ...(b.lead || {}) } : null;
   return { ...a, ...b, lead, historial: hist.slice(-MAX_TURNOS), derivado: !!(a.derivado || b.derivado), derivadoEn: b.derivadoEn || a.derivadoEn || null,

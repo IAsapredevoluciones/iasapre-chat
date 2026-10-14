@@ -130,7 +130,7 @@ async function manejarEntrante(msg, deps) {
       const le = leerRespuesta(resp); apertura = guard(le.texto) || `Hola ${asig.nombre.split(" ")[0] || ""}! ¿Cómo estás? Te escribe el asistente de IAsapre porque pediste asesoría sobre tu plan de salud. Es gratis y sin compromiso. ¿Te acomoda que lo veamos por acá?`;
       r = await deps.enviarTexto(tel, apertura);
     }
-    conv.historial.push({ role: "assistant", content: apertura, t: Date.now(), enviado: !!(r && r.ok) });
+    conv.historial.push({ role: "assistant", content: apertura, t: Date.now(), enviado: !!(r && r.ok), wamid: (r && r.id) || undefined });
     await deps.store.set(tel, conv);
     return { tipo: "asignacion", telefono: tel, accion: "abierta", enviado: !!(r && r.ok) };
   }
@@ -153,23 +153,35 @@ async function manejarEntrante(msg, deps) {
   else if (pedido) { derivacion = await derivar(conv, pedido, deps); if (!salida) salida = MSG_DERIVACION; }
   salida = guard(salida) || MSG_ERROR;
   const r = await deps.enviarTexto(from, salida);
-  conv.historial.push({ role: "assistant", content: salida, t: Date.now(), enviado: !!(r && r.ok) });
+  conv.historial.push({ role: "assistant", content: salida, t: Date.now(), enviado: !!(r && r.ok), wamid: (r && r.id) || undefined });
   if (conv.historial.length > MAX_HIST * 2) conv.historial = conv.historial.slice(-MAX_HIST * 2);
   conv.actualizado = new Date().toISOString();
   await deps.store.set(from, conv);
   return { tipo: "conversacion", telefono: from, derivado: !!derivacion, enviado: !!(r && r.ok), error: error ? String(error.message) : null };
 }
 
+const MOTIVO_FALLA = { 131042: "la cuenta de WhatsApp no tiene método de pago (Meta no entrega plantillas)", 131047: "pasaron más de 24 h: solo se puede escribir con plantilla", 131026: "el número no tiene WhatsApp o no puede recibir", 131049: "Meta limitó mensajes de marketing a este número", 132001: "la plantilla no existe o no está aprobada" };
+/** Marca como no entregado el mensaje del asistente que Meta informó como fallido (por wamid; si no, el último del asistente). */
+async function marcarFalla(f, store) {
+  if (!f || !f.para) return false; const conv = await store.get(f.para); if (!conv || !conv.historial) return false;
+  let turno = conv.historial.find((h) => h.role === "assistant" && h.wamid && h.wamid === f.id);
+  if (!turno) turno = [...conv.historial].reverse().find((h) => h.role === "assistant");
+  if (!turno) return false;
+  turno.enviado = false; turno.falla = `${f.code || ""} ${MOTIVO_FALLA[f.code] || f.title || ""}`.trim();
+  conv.actualizado = new Date().toISOString(); await store.set(f.para, conv); return true;
+}
+
 /** Retoma una conversación con mensajes de la persona sin responder (p. ej. por una falla anterior). deps como en manejarEntrante.
  *  - Ventana de 24 h abierta (último mensaje de la persona hace menos de 24 h): responde con Claude al historial pendiente.
  *  - Ventana cerrada: reabre con la plantilla aprobada (deps.plantillaInicio) usando su nombre.
  *  - Derivada o sin pendiente: no hace nada. Devuelve {tipo, enviado}. */
-async function retomar(telefono, deps) {
+async function retomar(telefono, deps, opciones) {
   const tel = digitos(telefono); const conv = tel ? await deps.store.get(tel) : null;
   if (!conv) return { tipo: "sin_conversacion" };
   if (conv.derivado) return { tipo: "ya_derivada" };
   const h = conv.historial || []; const ult = h[h.length - 1];
-  const pendiente = ult && (ult.role === "user" || ult.enviado === false);
+  const sinRespuesta = !h.some((x) => x.role === "user"); // lead que nunca contestó: se puede reenviar la apertura a pedido
+  const pendiente = (ult && (ult.role === "user" || ult.enviado === false)) || (opciones && opciones.reenviarApertura && sinRespuesta);
   if (!pendiente) return { tipo: "sin_pendiente" };
   const ultUser = [...h].reverse().find((x) => x.role === "user");
   const ventana = ultUser && ultUser.t && Date.now() - ultUser.t < 24 * 3600 * 1000;
@@ -187,7 +199,7 @@ async function retomar(telefono, deps) {
     r = await deps.enviarPlantilla(tel, deps.plantillaInicio, [nombre]);
     salida = `[Plantilla ${deps.plantillaInicio}] Hola ${nombre}! Te escribe el asistente de IAsapre porque pediste asesoría sobre tu plan de salud. Es gratis. ¿Lo vemos por acá?`;
   }
-  conv.historial.push({ role: "assistant", content: salida, t: Date.now(), enviado: !!(r && r.ok), retomada: true });
+  conv.historial.push({ role: "assistant", content: salida, t: Date.now(), enviado: !!(r && r.ok), retomada: true, wamid: (r && r.id) || undefined });
   conv.actualizado = new Date().toISOString();
   await deps.store.set(tel, conv);
   return { tipo: ventana ? "retomada" : "reabierta", enviado: !!(r && r.ok), derivado: !!conv.derivado };
@@ -243,6 +255,10 @@ function crearHandler(depsOverride) {
     let body = {}; try { body = JSON.parse(raw || "{}"); } catch (e) { return { statusCode: 400, body: "JSON inválido" }; }
     store.conectar(event);
     for (const f of wsp.estadosFallidos(body)) console.error("whatsapp estado failed", f.code, f.title); // sin teléfonos
+    for (const f of wsp.fallasEntrega(body)) { // Meta acepta el envío y avisa la falla después: se marca en la conversación y en el registro
+      try { await marcarFalla(f, (depsOverride && depsOverride.store) || { get: store.getConv, set: store.setConv }); } catch (e) {}
+      if (!depsOverride || depsOverride.registrarEventos) { try { await store.registrarEvento({ canal: "whatsapp", tipo: "entrega_fallida", error: `${f.code} ${f.title}`, de: f.para }); } catch (e) {} }
+    }
     const stt = require("./stt.js");
     const deps = Object.assign({ store: { get: store.getConv, set: store.setConv, del: store.delConv }, enviarTexto: wsp.enviarTexto, enviarPlantilla: wsp.enviarPlantilla, claude: claudeHTTP,
       notificarEspecialista: crearNotificador(wsp, env), plantillaInicio: env.WSP_TEMPLATE_INICIO || "",
@@ -271,4 +287,4 @@ function crearHandler(depsOverride) {
   };
 }
 
-module.exports = { manejarEntrante, retomar, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
+module.exports = { manejarEntrante, retomar, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };

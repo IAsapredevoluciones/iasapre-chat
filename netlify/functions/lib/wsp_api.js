@@ -80,6 +80,16 @@ async function descargarMedia(mediaId) {
 }
 
 /** Estados de entrega con error (p. ej. plantilla no aprobada, ventana de 24 h cerrada): [{code, title}] sin datos personales. */
+/** Igual que estadosFallidos pero con el id del mensaje (wamid) y el destinatario, para marcar la conversación. No usar en logs. */
+function fallasEntrega(body) {
+  const out = [];
+  try {
+    for (const entry of (body && body.entry) || []) for (const ch of entry.changes || []) for (const st of (ch.value && ch.value.statuses) || [])
+      if (st.status === "failed") { const e = (st.errors || [{}])[0] || {}; out.push({ id: st.id, para: digitos(st.recipient_id), code: e.code, title: e.title || (e.error_data && e.error_data.details) || "" }); }
+  } catch (e) {}
+  return out;
+}
+
 function estadosFallidos(body) {
   const out = [];
   try {
@@ -89,4 +99,4 @@ function estadosFallidos(body) {
   return out;
 }
 
-module.exports = { enviarTexto, enviarPlantilla, marcarLeido, verificarFirma, verificarWebhook, parsearWebhook, estadosFallidos, descargarMedia, cfg, digitos };
+module.exports = { enviarTexto, enviarPlantilla, marcarLeido, verificarFirma, verificarWebhook, parsearWebhook, estadosFallidos, fallasEntrega, descargarMedia, cfg, digitos };
