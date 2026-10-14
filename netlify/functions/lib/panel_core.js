@@ -1,4 +1,4 @@
-// Panel de revisión del canal WhatsApp (solo lectura): conversaciones guardadas, cada respuesta del asistente y el registro
+// Panel de revisión del canal WhatsApp: conversaciones guardadas, cada respuesta del asistente y el registro
 // de eventos (qué llegó, de quién, qué se hizo). Protegido con autenticación básica del navegador: usuario PANEL_USUARIO
 // (por defecto "iasapre") y contraseña PANEL_SECRET; si no existe, vale ASIGNAR_SECRET. Sin ninguna de las dos responde 503.
 // URL: https://iasapre-chat.netlify.app/.netlify/functions/panel  (?tel=569…  detalle · ?eventos=1  registro)
@@ -12,7 +12,7 @@ const igual = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(Stri
 const clave = (env) => env.PANEL_SECRET || env.ASIGNAR_SECRET || "";
 const HEAD = { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" };
 const CSS = "body{font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif;margin:0;background:#f4f8ff;color:#0d1421;font-size:16px}header{background:#2f5fd8;color:#fff;padding:12px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}header a{color:#fff;text-decoration:none;font-weight:600}main{padding:12px 16px;max-width:980px;margin:0 auto}table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #e6edf8;vertical-align:top}th{background:#eef3ff;font-size:14px}tr:hover td{background:#fafcff}.b{display:inline-block;padding:2px 8px;border-radius:999px;font-size:13px;background:#e6edf8}.b.der{background:#e96f9a;color:#fff}.b.ok{background:#69cbc1;color:#0d1421}.b.no{background:#ffd9d9}.chat{display:flex;flex-direction:column;gap:8px}.m{max-width:80%;padding:10px 12px;border-radius:14px;white-space:pre-wrap;line-height:1.35}.u{align-self:flex-end;background:#d9fdd3;border-bottom-right-radius:4px}.a{align-self:flex-start;background:#fff;border-bottom-left-radius:4px;border:1px solid #e6edf8}.t{font-size:12px;color:#667;margin-top:4px}.box{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;border:1px solid #e6edf8}small{color:#667}@media(max-width:600px){th:nth-child(4),td:nth-child(4){display:none}}";
-const pagina = (titulo, cuerpo) => `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(titulo)} · IAsapre</title><style>${CSS}</style></head><body><header><a href="?">Conversaciones</a><a href="?eventos=1">Eventos</a><small style="color:#dfe8ff">Asistente WhatsApp +56 9 5373 0030 · solo lectura</small></header><main>${cuerpo}</main></body></html>`;
+const pagina = (titulo, cuerpo) => `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(titulo)} · IAsapre</title><style>${CSS}</style></head><body><header><a href="?">Conversaciones</a><a href="?eventos=1">Eventos</a><a href="?asignar=1">Asignar leads</a><small style="color:#dfe8ff">Asistente WhatsApp +56 9 5373 0030 </small></header><main>${cuerpo}</main></body></html>`;
 
 function noAutorizado() { return { statusCode: 401, headers: { ...HEAD, "WWW-Authenticate": 'Basic realm="Panel IAsapre", charset="UTF-8"' }, body: pagina("Acceso", "<div class=box>Necesitas usuario y contraseña del panel.</div>") }; }
 
@@ -48,6 +48,30 @@ function vistaEventos(evs) {
   return pagina("Eventos", `<div class=box>Últimos ${evs.length} eventos del webhook y del endpoint de asignaciones (más recientes primero). Tipos: <code>conversacion</code>, <code>asignacion</code> (abierta/retomada), <code>asignacion_invalida</code>, <code>ignorado</code> (otro número, sin texto, duplicado), <code>audio_*</code>, <code>reinicio</code>, <code>error</code>.</div><table><tr><th>Cuándo</th><th>Origen</th><th>Qué pasó</th><th>Tipo msg</th></tr>${filas || '<tr><td colspan=4>Sin eventos todavía.</td></tr>'}</table>`);
 }
 
+/** Las acciones (POST) solo se aceptan desde el propio panel: bloquea formularios de otros sitios que reutilicen la sesión del navegador. */
+function mismoOrigen(event) {
+  const h = event.headers || {};
+  const sfs = h["sec-fetch-site"]; if (sfs && !["same-origin", "none"].includes(sfs)) return false;
+  const o = h.origin; if (o && o !== "null" && event.rawUrl) { try { return new URL(o).host === new URL(event.rawUrl).host; } catch (e) { return false; } }
+  if (o === "null") return false;
+  return true;
+}
+
+/** Leads pegados en el formulario: JSON (arreglo) o CSV con cabecera nombre,telefono,leadId,renta,region,clinica,cargas,contacto,… */
+function leerLeads(txt) {
+  txt = String(txt || "").trim(); if (!txt) return [];
+  if (txt.startsWith("[")) { const a = JSON.parse(txt); return Array.isArray(a) ? a : []; }
+  const [cab, ...filas] = txt.split(/\r?\n/).filter((l) => l.trim()); const cols = cab.split(",").map((c) => c.trim());
+  return filas.map((f) => { const v = f.split(","); const o = {}; cols.forEach((c, i) => { o[c] = (v[i] || "").trim(); }); return o; });
+}
+
+function vistaAsignar(resultados, error) {
+  const filas = (resultados || []).map((r) => `<tr><td><b>${esc(r.nombre || "?")}</b><br><small>${esc(r.telefono || "")}</small></td><td><span class="b ${r.ok ? "ok" : "no"}">${r.ok ? esc(r.accion || "ok") : "error"}</span>${r.enviado === false ? ' <span class="b no">NO ENVIADO</span>' : ""}${r.error ? "<br><small>" + esc(r.error) + "</small>" : ""}</td><td>${r.telefono ? `<a href="?tel=${esc(String(r.telefono).replace(/\D/g, ""))}">ver conversación</a>` : ""}</td></tr>`).join("");
+  return pagina("Asignar leads", `${error ? `<div class=box><span class="b no">error</span> ${esc(error)}</div>` : ""}${resultados ? `<div class=box><b>${resultados.filter((r) => r.ok).length}/${resultados.length}</b> asignaciones aceptadas.</div><table><tr><th>Lead</th><th>Resultado</th><th></th></tr>${filas}</table><br>` : ""}
+<div class=box><b>Asignar leads al asistente.</b> Pega un arreglo JSON o un CSV con cabecera <code>nombre,telefono,leadId,renta,region,clinica,cargas,contacto</code> (opcionales: <code>edad,isapre,comuna,preexistencias,tipo,resumen</code>). A cada lead nuevo el asistente le escribe con la plantilla aprobada; si ya conversaba, solo se actualizan sus datos. Es lo mismo que hará app.iasapre.cl con el endpoint <code>asignar</code>.</div>
+<form method="post" action="?asignar=1"><input type="hidden" name="accion" value="asignar"><textarea name="leads" rows="14" style="width:100%;box-sizing:border-box;font-family:ui-monospace,monospace;font-size:14px;border-radius:12px;border:1px solid #c9d6ee;padding:10px" placeholder='[{"nombre":"Camila Rojas","telefono":"+56 9 1234 5678","leadId":"...","isapre":"Colmena"}]'></textarea><br><br><button class="b" style="cursor:pointer;border:0;background:#2f5fd8;color:#fff;font-size:16px;padding:10px 18px">Asignar y escribirles</button></form>`);
+}
+
 function crearHandler(depsOverride) {
   return async function handler(event) {
     const env = (depsOverride && depsOverride.env) || process.env;
@@ -58,8 +82,24 @@ function crearHandler(depsOverride) {
     if (!store) { const st = require("./store.js"); st.conectar(event); store = { listar: st.listarConvs, obtener: st.getConv, eventos: st.listarEventos }; }
     const q = event.queryStringParameters || {};
     try {
-      if (event.httpMethod === "POST") { // acciones del panel: retomar una conversación sin responder
+      if (event.httpMethod === "POST") { // acciones del panel: retomar una conversación sin responder, asignar leads
+        if (!mismoOrigen(event)) return { statusCode: 403, headers: HEAD, body: pagina("Acción", "<div class=box>Acción rechazada: debe hacerse desde el propio panel.</div>") };
         const form = new URLSearchParams(event.body || ""); const accion = form.get("accion");
+        if (accion === "asignar") {
+          let leads; try { leads = leerLeads(form.get("leads")); } catch (e) { return { statusCode: 400, headers: HEAD, body: vistaAsignar(null, "No se pudo leer el JSON/CSV: " + (e && e.message)) }; }
+          if (!leads.length) return { statusCode: 400, headers: HEAD, body: vistaAsignar(null, "No hay leads en el texto pegado.") };
+          if (leads.length > 50) return { statusCode: 400, headers: HEAD, body: vistaAsignar(null, "Máximo 50 leads por vez.") };
+          const asignar = (depsOverride && depsOverride.asignar) || (async (d) => {
+            if (!env.ASIGNAR_SECRET) return { ok: false, error: "Falta ASIGNAR_SECRET en Netlify" };
+            const core = require("./asignar_core.js"); // mismo flujo que el endpoint; el secreto se usa solo en el servidor
+            const r = await core.crearHandler()({ ...event, httpMethod: "POST", headers: { authorization: "Bearer " + env.ASIGNAR_SECRET }, body: JSON.stringify(d) });
+            let j = {}; try { j = JSON.parse(r.body || "{}"); } catch (e) {} return j;
+          });
+          const res = [];
+          for (const d of leads) { let j = {}; try { j = await asignar(d); } catch (e) { j = { ok: false, error: String(e && e.message) }; } res.push({ nombre: d.nombre, telefono: d.telefono, ok: !!j.ok, accion: j.accion, enviado: j.enviado, error: j.error || (j.ok ? "" : j.tipo) }); }
+          console.log("panel asignar", JSON.stringify({ n: res.length, ok: res.filter((r) => r.ok).length })); // sin datos personales
+          return { statusCode: 200, headers: HEAD, body: vistaAsignar(res) };
+        }
         if (accion !== "retomar" || !q.tel) return { statusCode: 400, headers: HEAD, body: pagina("Acción", "<div class=box>Acción no reconocida. <a href='?'>Volver</a></div>") };
         const retomar = (depsOverride && depsOverride.retomar) || (async (tel) => { const A = require("./wsp_agent.js"); return A.retomar(tel, A.depsReales(event)); });
         const r = await retomar(q.tel);
@@ -68,10 +108,11 @@ function crearHandler(depsOverride) {
         return { statusCode: 200, headers: HEAD, body: c ? vistaDetalle(c, texto + (r.enviado === false ? " (el envío por WhatsApp falló)" : "")) : vistaLista(await store.listar(), texto) };
       }
       if (q.tel) { const c = await store.obtener(q.tel); return { statusCode: c ? 200 : 404, headers: HEAD, body: c ? vistaDetalle(c) : pagina("No encontrada", "<div class=box>No hay conversación con ese número. <a href='?'>Volver</a></div>") }; }
+      if (q.asignar) return { statusCode: 200, headers: HEAD, body: vistaAsignar() };
       if (q.eventos) return { statusCode: 200, headers: HEAD, body: vistaEventos(await store.eventos(Math.min(Number(q.n) || 150, 500))) };
       return { statusCode: 200, headers: HEAD, body: vistaLista(await store.listar()) };
     } catch (e) { console.error("panel", e && e.message); return { statusCode: 500, headers: HEAD, body: pagina("Error", "<div class=box>Error al leer el almacén.</div>") }; }
   };
 }
 
-module.exports = { crearHandler, autorizado, vistaLista, vistaDetalle, vistaEventos, esc, pendiente };
+module.exports = { crearHandler, autorizado, vistaLista, vistaDetalle, vistaEventos, vistaAsignar, leerLeads, mismoOrigen, esc, pendiente };

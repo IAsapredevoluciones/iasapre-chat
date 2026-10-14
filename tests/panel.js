@@ -41,6 +41,22 @@ const b64 = (s) => Buffer.from(s).toString("base64");
   ok(r.statusCode === 200 && llamadas[0] === "56985380357" && /Respondido/.test(r.body) && /hola/.test(r.body), "POST retomar → acción ejecutada y detalle con aviso");
   r = await Hr({ httpMethod: "POST", headers: {}, queryStringParameters: { tel: "56985380357" }, body: "accion=retomar" }); ok(r.statusCode === 401 && llamadas.length === 1, "POST sin credenciales → 401 y no ejecuta");
   r = await Hr({ httpMethod: "POST", headers: auth, queryStringParameters: { tel: "56985380357" }, body: "accion=borrar" }); ok(r.statusCode === 400, "acción desconocida → 400");
+  // CSRF: POST desde otro sitio se rechaza aunque el navegador mande la sesión
+  r = await Hr({ httpMethod: "POST", headers: { ...auth, origin: "https://malo.example", "sec-fetch-site": "cross-site" }, queryStringParameters: { tel: "56985380357" }, body: "accion=retomar", rawUrl: "https://iasapre-chat.netlify.app/.netlify/functions/panel?tel=56985380357" });
+  ok(r.statusCode === 403 && llamadas.length === 1, "POST desde otro sitio → 403 y no ejecuta");
+  r = await Hr({ httpMethod: "POST", headers: { ...auth, origin: "https://iasapre-chat.netlify.app", "sec-fetch-site": "same-origin" }, queryStringParameters: { tel: "56985380357" }, body: "accion=retomar", rawUrl: "https://iasapre-chat.netlify.app/.netlify/functions/panel?tel=56985380357" });
+  ok(r.statusCode === 200 && llamadas.length === 2, "POST desde el propio panel → se ejecuta");
+  // Asignar leads desde el panel (JSON y CSV)
+  const asignados = []; const Ha = P.crearHandler({ store, env: { PANEL_SECRET: "clave-panel" }, asignar: async (d) => { asignados.push(d); return d.telefono === "+56 9 0000 0000" ? { ok: true, tipo: "asignacion", accion: "abierta", enviado: false } : { ok: true, tipo: "asignacion", accion: "abierta", enviado: true }; } });
+  r = await Ha({ httpMethod: "GET", headers: auth, queryStringParameters: { asignar: "1" } }); ok(r.statusCode === 200 && /Asignar y escribirles/.test(r.body) && /<textarea name="leads"/.test(r.body), "formulario de asignación");
+  const json = JSON.stringify([{ nombre: "Luis <b>Prueba</b>", telefono: "+56 9 7156 3526", isapre: "Banmédica", preexistencias: "Cancer de Pulmon" }, { nombre: "Sin WhatsApp", telefono: "+56 9 0000 0000" }]);
+  r = await Ha({ httpMethod: "POST", headers: auth, queryStringParameters: { asignar: "1" }, body: "accion=asignar&leads=" + encodeURIComponent(json) });
+  ok(r.statusCode === 200 && asignados.length === 2 && asignados[0].isapre === "Banmédica" && /2<\/b>\/2 asignaciones aceptadas/.test(r.body) && /NO ENVIADO/.test(r.body) && /&lt;b&gt;Prueba/.test(r.body) && /\?tel=56971563526/.test(r.body), "asignar JSON: llama por lead, muestra resultado escapado y no enviados");
+  r = await Ha({ httpMethod: "POST", headers: auth, queryStringParameters: { asignar: "1" }, body: "accion=asignar&leads=" + encodeURIComponent("nombre,telefono,isapre\nAna,+56 9 1111 2222,Colmena") });
+  ok(r.statusCode === 200 && asignados.length === 3 && asignados[2].nombre === "Ana" && asignados[2].isapre === "Colmena", "asignar CSV");
+  r = await Ha({ httpMethod: "POST", headers: auth, queryStringParameters: { asignar: "1" }, body: "accion=asignar&leads=" + encodeURIComponent("[{mal") }); ok(r.statusCode === 400 && /No se pudo leer/.test(r.body), "JSON inválido → 400");
+  r = await Ha({ httpMethod: "POST", headers: auth, queryStringParameters: { asignar: "1" }, body: "accion=asignar&leads=" }); ok(r.statusCode === 400 && asignados.length === 3, "vacío → 400");
+  ok(P.leerLeads("").length === 0 && P.leerLeads(" [ ] ").length === 0, "leerLeads vacío");
   // registro de eventos desde el webhook real (store en memoria)
   process.env.WSP_APP_SECRET = "sec";
   const mem = new Map(); const deps = { registrarEventos: true, store: { get: async (k) => mem.get(k) || null, set: async (k, v) => { mem.set(k, v); } }, enviarTexto: async () => ({ ok: true }), enviarPlantilla: async () => ({ ok: true }), claude: async () => ({ stop_reason: "end_turn", content: [{ type: "text", text: "Hola!" }] }), notificarEspecialista: async () => [], plantillaInicio: "" };
