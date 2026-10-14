@@ -30,6 +30,10 @@ const eventoAudio = (id) => ({ object: "whatsapp_business_account", entry: [{ ch
   ok(!stt.configurado({}) && stt.proveedor({ OPENAI_API_KEY: "k" }) === "openai" && stt.proveedor({ DEEPGRAM_API_KEY: "d" }) === "deepgram" && stt.proveedor({ OPENAI_API_KEY: "k", DEEPGRAM_API_KEY: "d", STT_PROVIDER: "deepgram" }) === "deepgram", "proveedor según variables");
   let t = await stt.transcribir(Buffer.from([1, 2, 3]), "audio/ogg; codecs=opus", { OPENAI_API_KEY: "k" });
   ok(t === "hola, quiero cambiarme de isapre" && /api\.openai\.com\/v1\/audio\/transcriptions$/.test(capt.u) && capt.o.headers.Authorization === "Bearer k" && capt.o.body instanceof FormData && capt.o.body.get("model") === "gpt-4o-mini-transcribe" && capt.o.body.get("language") === "es" && capt.o.body.get("file").name === "audio.ogg", "OpenAI: multipart con archivo, modelo e idioma");
+  // stt: openai vía Netlify AI Gateway (OPENAI_BASE_URL)
+  global.fetch = async (u, o) => { capt = { u: String(u), o }; return { ok: true, status: 200, json: async () => ({ text: "hola" }) }; };
+  t = await stt.transcribir(Buffer.from([1]), "audio/ogg", { OPENAI_API_KEY: "gw", OPENAI_BASE_URL: "https://gateway.netlify.test/openai/" });
+  ok(t === "hola" && capt.u === "https://gateway.netlify.test/openai/audio/transcriptions", "OpenAI respeta OPENAI_BASE_URL del AI Gateway: " + capt.u);
   // stt: deepgram
   global.fetch = async (u, o) => { capt = { u: String(u), o }; return { ok: true, status: 200, json: async () => ({ results: { channels: [{ alternatives: [{ transcript: "tengo dos cargas" }] }] } }) }; };
   t = await stt.transcribir(new Uint8Array([1]).buffer, "audio/ogg", { DEEPGRAM_API_KEY: "d" });

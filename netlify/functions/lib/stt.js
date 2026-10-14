@@ -1,5 +1,5 @@
 // Transcripción de audios de WhatsApp (notas de voz ogg/opus). Proveedor según variables de entorno (Netlify):
-//   OPENAI_API_KEY   → OpenAI Audio Transcriptions (modelo STT_MODEL, por defecto gpt-4o-mini-transcribe)
+//   OPENAI_API_KEY   → OpenAI Audio Transcriptions (modelo STT_MODEL, por defecto gpt-4o-mini-transcribe); respeta OPENAI_BASE_URL (Netlify AI Gateway)
 //   DEEPGRAM_API_KEY → Deepgram (modelo STT_MODEL, por defecto nova-3)
 // STT_PROVIDER fuerza uno ("openai" | "deepgram"). Sin clave configurada → configurado() = false y el agente pide el mensaje por escrito.
 // Nunca se registra el contenido del audio ni la transcripción en logs.
@@ -28,7 +28,9 @@ async function transcribir(buffer, mime, env) {
     fd.append("model", env.STT_MODEL || "gpt-4o-mini-transcribe");
     fd.append("language", "es");
     fd.append("response_format", "json");
-    const r = await fetch((env.OPENAI_API_BASE || "https://api.openai.com/v1") + "/audio/transcriptions", { method: "POST", headers: { Authorization: "Bearer " + env.OPENAI_API_KEY }, body: fd });
+    // Netlify AI Gateway inyecta OPENAI_API_KEY + OPENAI_BASE_URL en las funciones: la clave solo sirve contra esa URL.
+    const base = String(env.OPENAI_API_BASE || env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/+$/, "");
+    const r = await fetch(base + "/audio/transcriptions", { method: "POST", headers: { Authorization: "Bearer " + env.OPENAI_API_KEY }, body: fd });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error("STT openai " + r.status + " " + ((j.error && j.error.message) || ""));
     return String(j.text || "").trim();
