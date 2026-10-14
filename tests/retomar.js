@@ -35,6 +35,11 @@ function mocks(claudeTxt) { const mem = new Map(), enviados = [], plantillas = [
   const avisos = []; M.deps.notificarEspecialista = async (res, meta) => { avisos.push(meta); return [{ ok: true }]; };
   M.mem.set("56911110006", { telefono: "56911110006", nombrePerfil: "Eva", lead: null, historial: [{ role: "user", content: "quiero hablar con una persona", t: ahora - 1000 }], derivado: false });
   r = await A.retomar("56911110006", M.deps); ok(r.tipo === "retomada" && r.derivado && avisos.length === 1 && avisos[0].urgencia === "Alta" && M.mem.get("56911110006").derivado, "retomar con derivación");
+  // 7) recuperar: mensaje perdido → disculpa breve generada por el modelo, con la instrucción interna
+  M = mocks("Disculpa la demora, tu mensaje no alcanzó a llegar. En el formulario pusiste diabetes y cáncer de ovario, ¿es así?");
+  M.mem.set("56961255493", { telefono: "56961255493", lead: { nombre: "Yolanda Ulloa", preexistencias: "Diabetes Mellitus, Cancer de ovario" }, historial: [{ role: "assistant", content: "[Plantilla] Hola Yolanda!", t: ahora - 3600000 }], derivado: false });
+  r = await A.retomar("56961255493", M.deps, { recuperar: true });
+  ok(r.tipo === "recuperada" && r.enviado && M.enviados.length === 1 && /no alcanzó a llegar/.test(M.enviados[0].body) && /falla técnica/.test(JSON.stringify(M.llamadas[0].messages)) && M.llamadas[0].tools.some((t) => t.name === "derivar"), "recuperar: disculpa y retoma con preexistencias");
   if (fails.length) { console.log("✘ Retomar: " + fails.length + " fallas\n - " + fails.join("\n - ")); process.exit(1); }
   console.log("Retomar OK: pendiente reciente, envío fallido, ventana cerrada con/sin plantilla, derivada, derivación al retomar");
 })();

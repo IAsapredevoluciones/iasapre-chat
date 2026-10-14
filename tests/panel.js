@@ -42,6 +42,7 @@ const b64 = (s) => Buffer.from(s).toString("base64");
   r = await Hr({ httpMethod: "POST", headers: {}, queryStringParameters: { tel: "56985380357" }, body: "accion=retomar" }); ok(r.statusCode === 401 && llamadas.length === 1, "POST sin credenciales → 401 y no ejecuta");
   r = await Hr({ httpMethod: "POST", headers: auth, queryStringParameters: { tel: "56985380357" }, body: "accion=borrar" }); ok(r.statusCode === 400, "acción desconocida → 400");
   const ops = []; const Hv = P.crearHandler({ store, env: { PANEL_SECRET: "clave-panel" }, retomar: async (tel, op) => { ops.push(op); return { tipo: "reabierta", enviado: true }; } });
+  r = await Hv({ httpMethod: "POST", headers: auth, queryStringParameters: { tel: "56985380357" }, body: "accion=recuperar" }); ok(ops[0] && ops[0].recuperar === true, "accion recuperar → retomar con recuperar"); ops.length = 0;
   r = await Hv({ httpMethod: "POST", headers: auth, queryStringParameters: { tel: "56985380357" }, body: "accion=reenviar" }); ok(r.statusCode === 200 && ops[0] && ops[0].reenviarApertura === true && /Apertura reenviada/.test(r.body), "accion reenviar → retomar con reenviarApertura");
   // CSRF: POST desde otro sitio se rechaza aunque el navegador mande la sesión
   r = await Hr({ httpMethod: "POST", headers: { ...auth, origin: "https://malo.example", "sec-fetch-site": "cross-site" }, queryStringParameters: { tel: "56985380357" }, body: "accion=retomar", rawUrl: "https://iasapre-chat.netlify.app/.netlify/functions/panel?tel=56985380357" });

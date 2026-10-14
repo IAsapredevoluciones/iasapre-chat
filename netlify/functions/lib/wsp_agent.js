@@ -202,6 +202,7 @@ async function retomar(telefono, deps, opciones) {
   if (!conv) return { tipo: "sin_conversacion" };
   const h = conv.historial || []; const ult = h[h.length - 1];
   if (conv.derivado && !(ult && ult.role === "user")) return { tipo: "ya_derivada" }; // derivada: solo se retoma si la persona escribió algo sin respuesta
+  if (opciones && opciones.recuperar) return recuperar(conv, deps); // la persona respondió pero su mensaje no llegó (falla de Meta)
   const sinRespuesta = !h.some((x) => x.role === "user"); // lead que nunca contestó: se puede reenviar la apertura a pedido
   const pendiente = (ult && (ult.role === "user" || ult.enviado === false)) || (opciones && opciones.reenviarApertura && sinRespuesta);
   if (!pendiente) return { tipo: "sin_pendiente" };
@@ -229,6 +230,19 @@ async function retomar(telefono, deps, opciones) {
   conv.actualizado = new Date().toISOString();
   await deps.store.set(tel, conv);
   return { tipo: ventana ? "retomada" : "reabierta", enviado: !!(r && r.ok), derivado: !!conv.derivado };
+}
+
+const INSTR_RECUPERAR = "Nota interna (no es un mensaje de la persona): la persona te respondió hace un rato, pero por una falla técnica su mensaje no llegó y no sabemos qué escribió. Escríbele SOLO un mensaje breve y cálido: pide disculpas por la demora (sin detalles técnicos), dile que su mensaje no alcanzó a llegar y retoma con la siguiente pregunta pendiente según el rol (si hay preexistencias en el formulario, empieza por ellas). No llames herramientas.";
+/** Recupera una conversación cuyo mensaje entrante se perdió: el modelo escribe una disculpa breve y retoma. Texto libre (requiere que la persona haya escrito en las últimas 24 h). */
+async function recuperar(conv, deps) {
+  if (conv.derivado) return { tipo: "ya_derivada" };
+  let resp = null; try { resp = await deps.claude(cuerpoClaude(conv, INSTR_RECUPERAR)); } catch (e) { return { tipo: "error", error: String(e && e.message) }; }
+  const le = leerRespuesta(resp); if (le.rechazo || !le.texto) return { tipo: "error", error: "sin texto del modelo" };
+  const salida = guard(le.texto) || MSG_ERROR;
+  const r = await deps.enviarTexto(conv.telefono, salida);
+  conv.historial.push({ role: "assistant", content: salida, t: Date.now(), enviado: !!(r && r.ok), retomada: true, wamid: (r && r.id) || undefined });
+  conv.actualizado = new Date().toISOString(); await deps.store.set(conv.telefono, conv);
+  return { tipo: "recuperada", enviado: !!(r && r.ok), error: r && !r.ok ? r.error : undefined };
 }
 
 /** deps reales (WhatsApp, Claude, Blobs) para usar fuera del webhook (panel). */
