@@ -273,6 +273,10 @@ function crearHandler(depsOverride) {
         try { m.texto = String(await deps.transcribir(m.mediaId) || "").trim(); m.viaAudio = true; } catch (e) { console.error("audio transcripción", e && e.message); }
         if (!m.texto) { const rr = await deps.enviarTexto(m.from, MSG_AUDIO); resultados.push({ tipo: "audio_fallido", enviado: !!(rr && rr.ok) }); continue; }
       }
+      if (!m.texto && m.from === digitos(NUMEROS.asignaciones)) { // la plataforma manda plantillas con botones: Meta las entrega como "unsupported", sin contenido
+        console.error("whatsapp: asignación de la plataforma no legible (" + m.tipo + "); usar el endpoint asignar o el panel");
+        resultados.push({ tipo: "asignacion_no_legible", motivo: "la plataforma envió una plantilla que Meta no deja leer: asignar desde el panel (Asignar leads) o que app.iasapre.cl use el endpoint asignar" }); continue;
+      }
       if (!m.texto) {
         if (m.from && !["reaction", "unsupported"].includes(m.tipo)) { const rr = await deps.enviarTexto(m.from, MSG_NO_TEXTO); resultados.push({ tipo: "ignorado", motivo: "sin texto (" + m.tipo + ")", enviado: !!(rr && rr.ok) }); }
         else resultados.push({ tipo: "ignorado", motivo: "sin texto (" + m.tipo + ")" });

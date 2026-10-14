@@ -113,6 +113,12 @@ const txt = (t) => ({ stop_reason: "end_turn", content: [{ type: "text", text: t
   ok(p.statusCode === 200 && Mm.enviados.length === 2 && Mm.llamadas.length === 1, "mensajes para el número del asistente sí se responden");
   delete process.env.WSP_PHONE_NUMBER_ID;
   ok(api.verificarFirma(raw, firma, "secreto-de-prueba") && !api.verificarFirma(raw, firma, "otro") && !api.verificarFirma(raw, "", "secreto-de-prueba"), "verificarFirma");
+  // 10b) asignación de la plataforma que llega como "unsupported" (plantilla con botones)
+  const evU = { object: "whatsapp_business_account", entry: [{ changes: [{ field: "messages", value: { messages: [{ from: "56988830767", id: "wamid.u1", type: "unsupported", errors: [{ code: 131051 }] }] } }] }] };
+  const rawU = JSON.stringify(evU), firmaU = "sha256=" + crypto.createHmac("sha256", "secreto-de-prueba").update(rawU).digest("hex");
+  const Mu = mocks([txt("x")]); const Hu = A.crearHandler(Mu.deps); const errU = console.error; console.error = () => {};
+  p = await Hu({ httpMethod: "POST", headers: { "x-hub-signature-256": firmaU }, body: rawU }); console.error = errU;
+  ok(p.statusCode === 200 && Mu.enviados.length === 0 && Mu.llamadas.length === 0, "asignación ilegible de la plataforma: no responde ni llama al modelo");
   // 11) notificador: Discord sin salud; CRM con resumen; WhatsApp al especialista
   const posts = []; const fetchReal = global.fetch; global.fetch = async (u, o) => { posts.push({ u, body: JSON.parse(o.body) }); return { ok: true, json: async () => ({}) }; };
   const envN = { LEADS_WEBHOOK: "https://crm.test/hook", DISCORD_WEBHOOK: "https://discord.test/hook" };
