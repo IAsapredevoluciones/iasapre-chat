@@ -34,6 +34,17 @@ const eventoAudio = (id) => ({ object: "whatsapp_business_account", entry: [{ ch
   global.fetch = async (u, o) => { capt = { u: String(u), o }; return { ok: true, status: 200, json: async () => ({ text: "hola" }) }; };
   t = await stt.transcribir(Buffer.from([1]), "audio/ogg", { OPENAI_API_KEY: "gw", OPENAI_BASE_URL: "https://gateway.netlify.test/openai/" });
   ok(t === "hola" && capt.u === "https://gateway.netlify.test/openai/audio/transcriptions", "OpenAI respeta OPENAI_BASE_URL del AI Gateway: " + capt.u);
+  // stt: Gemini vía Netlify AI Gateway (audio nativo, sin configurar nada)
+  ok(stt.proveedor({ GEMINI_API_KEY: "g", GOOGLE_GEMINI_BASE_URL: "https://gw/gemini", OPENAI_API_KEY: "gw", OPENAI_BASE_URL: "https://gw/openai" }) === "gemini", "gateway: Gemini antes que OpenAI del gateway");
+  ok(stt.proveedor({ GEMINI_API_KEY: "g", GOOGLE_GEMINI_BASE_URL: "https://gw/gemini", OPENAI_API_KEY: "propia" }) === "openai", "clave propia de OpenAI (sin base URL) tiene prioridad");
+  global.fetch = async (u, o) => { capt = { u: String(u), o }; return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: " estoy en cruz blanca " }] } }] }) }; };
+  t = await stt.transcribir(Buffer.from([79, 103, 103]), "audio/ogg; codecs=opus", { GEMINI_API_KEY: "g", GOOGLE_GEMINI_BASE_URL: "https://gw.test/gemini/" });
+  const cuerpoG = JSON.parse(capt.o.body);
+  ok(t === "estoy en cruz blanca" && capt.u === "https://gw.test/gemini/v1beta/models/gemini-2.5-flash:generateContent" && capt.o.headers["x-goog-api-key"] === "g" && cuerpoG.contents[0].parts[0].inline_data.mime_type === "audio/ogg" && cuerpoG.contents[0].parts[0].inline_data.data === "T2dn", "Gemini: audio inline en base64, modelo y clave");
+  // límite de tiempo: si el proveedor no responde, se aborta
+  global.fetch = (u, o) => new Promise((res, rej) => { o.signal.addEventListener("abort", () => { const e = new Error("aborted"); e.name = "AbortError"; rej(e); }); });
+  let errT = null; const t0 = Date.now(); try { await stt.fetchT("https://x", {}, 50); } catch (e) { errT = e; }
+  ok(errT && errT.name === "AbortError" && Date.now() - t0 < 1000, "fetchT aborta al agotar el tiempo");
   // stt: deepgram
   global.fetch = async (u, o) => { capt = { u: String(u), o }; return { ok: true, status: 200, json: async () => ({ results: { channels: [{ alternatives: [{ transcript: "tengo dos cargas" }] }] } }) }; };
   t = await stt.transcribir(new Uint8Array([1]).buffer, "audio/ogg", { DEEPGRAM_API_KEY: "d" });

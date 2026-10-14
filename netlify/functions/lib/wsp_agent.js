@@ -27,6 +27,12 @@ const TOOLS = [{
       motivo: { type: "string", description: "Por qué no se pudo resolver" },
       urgencia: { type: "string", enum: ["Alta", "Media", "Baja"] } } } }];
 
+/** Herramientas cuando la conversación ya fue derivada: no se vuelve a derivar; solo se pueden pasar datos nuevos al especialista. */
+const TOOLS_DERIVADA = [{ name: "nota_especialista", strict: true,
+  description: "La conversación ya fue derivada. Úsala solo si la persona aporta un dato útil para el especialista (horario preferido de contacto, un dato nuevo de su plan, salud o situación, una pregunta concreta). No la uses para agradecimientos ni 'ok'. Nunca incluyas salud mental.",
+  input_schema: { type: "object", additionalProperties: false, required: ["nota"], properties: { nota: { type: "string", description: "El dato nuevo en una o dos frases, para el especialista" } } } }];
+const MSG_POST_DERIVACION = "Anotado. Cualquier otra cosa que quieras agregar, escríbeme por acá y se la paso al especialista.";
+
 const MSG_DERIVACION = `Esta consulta la va a ver mejor un especialista de nuestro equipo. Le paso tu caso con lo que conversamos para que no tengas que repetirlo, y te escribirá desde el número ${NUMEROS.especialista}. 🙌`;
 const MSG_RECHAZO = `Eso no lo puedo ver por acá. Te paso con un especialista del equipo, que te escribirá desde el número ${NUMEROS.especialista}.`;
 const MSG_ERROR = "Se me cayó la conexión un segundo. ¿Me lo repites? Si sigue fallando, escríbenos al " + NUMEROS.especialista + ".";
@@ -75,7 +81,7 @@ function cuerpoClaude(conv, instruccion) {
   if (instruccion) msgs.push({ role: "user", content: instruccion });
   return { model: MODEL, max_tokens: 1024, output_config: { effort: process.env.MODEL_WSP_EFFORT || "low" }, fallbacks: "default",
     system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }, { type: "text", text: contexto(conv) }],
-    tools: TOOLS, tool_choice: { type: "auto" }, messages: msgs };
+    tools: conv.derivado ? TOOLS_DERIVADA : TOOLS, tool_choice: { type: "auto" }, messages: msgs };
 }
 
 /** Llamada real a la API de Claude (fetch nativo, como chat.js). Devuelve el JSON de la respuesta o lanza. */
@@ -90,10 +96,14 @@ async function claudeHTTP(body) {
 
 /** Interpreta la respuesta del modelo: texto para la persona + llamada a derivar (si la hubo). */
 function leerRespuesta(resp) {
-  if (!resp || resp.stop_reason === "refusal") return { texto: "", derivar: null, rechazo: true };
-  let texto = "", derivar = null;
-  for (const b of resp.content || []) { if (b.type === "text") texto += (texto ? "\n" : "") + b.text; else if (b.type === "tool_use" && b.name === "derivar") derivar = b.input || {}; }
-  return { texto: texto.trim(), derivar, rechazo: false };
+  if (!resp || resp.stop_reason === "refusal") return { texto: "", derivar: null, nota: null, rechazo: true };
+  let texto = "", derivar = null, nota = null;
+  for (const b of resp.content || []) {
+    if (b.type === "text") texto += (texto ? "\n" : "") + b.text;
+    else if (b.type === "tool_use" && b.name === "derivar") derivar = b.input || {};
+    else if (b.type === "tool_use" && b.name === "nota_especialista") nota = String((b.input && b.input.nota) || "").trim() || null;
+  }
+  return { texto: texto.trim(), derivar, nota, rechazo: false };
 }
 
 /** Deriva: resumen al especialista (WhatsApp + webhooks) y marca la conversación. */
@@ -146,18 +156,30 @@ async function manejarEntrante(msg, deps) {
   conv.historial.push({ role: "user", content: texto, t: Date.now(), id: msg.messageId || undefined, audio: msg.viaAudio ? true : undefined });
   let resp = null, error = null;
   try { resp = await deps.claude(cuerpoClaude(conv)); } catch (e) { error = e; }
-  let { texto: salida, derivar: pedido, rechazo } = leerRespuesta(resp);
+  let { texto: salida, derivar: pedido, nota, rechazo } = leerRespuesta(resp);
   let derivacion = null;
+  const yaDerivada = !!conv.derivado;
   if (error) salida = MSG_ERROR;
-  else if (rechazo) { derivacion = await derivar(conv, { urgencia: "Media", conversado: "(respuesta rechazada por políticas del modelo)" }, deps, "el modelo rechazó responder"); salida = MSG_RECHAZO; }
-  else if (pedido) { derivacion = await derivar(conv, pedido, deps); if (!salida) salida = MSG_DERIVACION; }
+  else if (rechazo) {
+    if (!yaDerivada) derivacion = await derivar(conv, { urgencia: "Media", conversado: "(respuesta rechazada por políticas del modelo)" }, deps, "el modelo rechazó responder");
+    salida = yaDerivada ? MSG_POST_DERIVACION : MSG_RECHAZO;
+  }
+  else if (pedido && !yaDerivada) { derivacion = await derivar(conv, pedido, deps); if (!salida) salida = MSG_DERIVACION; }
+  if (!error && !rechazo && yaDerivada) {
+    if (nota) { // dato nuevo para el especialista (horario, dato del plan, etc.): se le reenvía sin volver a derivar
+      const L = conv.lead || {};
+      const aviso = `📝 Actualización IAsapre\nLead: ${L.nombre || conv.nombrePerfil || "Sin nombre"} · ${fmtCL(conv.telefono) || conv.telefono}${L.leadId ? "\nPlataforma: https://app.iasapre.cl/?lead=" + L.leadId : ""}\n${guard(nota)}`;
+      try { await deps.notificarEspecialista(aviso, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: "Media" }); } catch (e) { console.error("nota especialista", e && e.message); }
+    }
+    if (!salida) salida = MSG_POST_DERIVACION;
+  }
   salida = guard(salida) || MSG_ERROR;
   const r = await deps.enviarTexto(from, salida);
   conv.historial.push({ role: "assistant", content: salida, t: Date.now(), enviado: !!(r && r.ok), wamid: (r && r.id) || undefined });
   if (conv.historial.length > MAX_HIST * 2) conv.historial = conv.historial.slice(-MAX_HIST * 2);
   conv.actualizado = new Date().toISOString();
   await deps.store.set(from, conv);
-  return { tipo: "conversacion", telefono: from, derivado: !!derivacion, enviado: !!(r && r.ok), error: error ? String(error.message) : null };
+  return { tipo: "conversacion", telefono: from, derivado: !!derivacion, nota: !!(yaDerivada && nota), enviado: !!(r && r.ok), error: error ? String(error.message) : null };
 }
 
 const MOTIVO_FALLA = { 131042: "la cuenta de WhatsApp no tiene método de pago (Meta no entrega plantillas)", 131047: "pasaron más de 24 h: solo se puede escribir con plantilla", 131026: "el número no tiene WhatsApp o no puede recibir", 131049: "Meta limitó mensajes de marketing a este número", 132001: "la plantilla no existe o no está aprobada" };
@@ -270,8 +292,9 @@ function crearHandler(depsOverride) {
       try { if (m.messageId && !depsOverride) wsp.marcarLeido(m.messageId).catch(() => {}); } catch (e) {}
       if (!m.texto && m.mediaId) { // nota de voz → transcripción (sin guardar el audio ni registrar su contenido)
         if (!deps.transcribir) { const rr = await deps.enviarTexto(m.from, MSG_AUDIO); resultados.push({ tipo: "audio_sin_stt", enviado: !!(rr && rr.ok) }); continue; }
-        try { m.texto = String(await deps.transcribir(m.mediaId) || "").trim(); m.viaAudio = true; } catch (e) { console.error("audio transcripción", e && e.message); }
-        if (!m.texto) { const rr = await deps.enviarTexto(m.from, MSG_AUDIO); resultados.push({ tipo: "audio_fallido", enviado: !!(rr && rr.ok) }); continue; }
+        let errAudio = null;
+        try { m.texto = String(await deps.transcribir(m.mediaId) || "").trim(); m.viaAudio = true; } catch (e) { errAudio = String((e && (e.name === "AbortError" ? "tiempo agotado" : e.message)) || e).slice(0, 160); console.error("audio transcripción", errAudio); }
+        if (!m.texto) { const rr = await deps.enviarTexto(m.from, MSG_AUDIO); resultados.push({ tipo: "audio_fallido", enviado: !!(rr && rr.ok), error: errAudio || "transcripción vacía" }); continue; }
       }
       if (!m.texto && m.from === digitos(NUMEROS.asignaciones)) { // la plataforma manda plantillas con botones: Meta las entrega como "unsupported", sin contenido
         console.error("whatsapp: asignación de la plataforma no legible (" + m.tipo + "); usar el endpoint asignar o el panel");
@@ -291,4 +314,4 @@ function crearHandler(depsOverride) {
   };
 }
 
-module.exports = { manejarEntrante, retomar, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
+module.exports = { manejarEntrante, retomar, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, TOOLS_DERIVADA, MSG_POST_DERIVACION, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };

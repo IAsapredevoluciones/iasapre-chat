@@ -71,10 +71,11 @@ function parsearWebhook(body) {
 /** Descarga un medio (nota de voz) de la Cloud API: GET /{media_id} → url temporal → bytes. Devuelve {buffer, mime}. */
 async function descargarMedia(mediaId) {
   const c = cfg(); if (!c.token) throw new Error("Falta WSP_TOKEN");
-  const r1 = await fetch(`${API}/${encodeURIComponent(mediaId)}`, { headers: { Authorization: "Bearer " + c.token } });
+  const { fetchT } = require("./stt.js");
+  const r1 = await fetchT(`${API}/${encodeURIComponent(mediaId)}`, { headers: { Authorization: "Bearer " + c.token } }, 5000);
   const meta = await r1.json().catch(() => ({}));
   if (!r1.ok || !meta.url) throw new Error("media " + r1.status + " " + ((meta.error && meta.error.message) || "sin url"));
-  const r2 = await fetch(meta.url, { headers: { Authorization: "Bearer " + c.token } });
+  const r2 = await fetchT(meta.url, { headers: { Authorization: "Bearer " + c.token } }, 8000);
   if (!r2.ok) throw new Error("media descarga " + r2.status);
   return { buffer: Buffer.from(await r2.arrayBuffer()), mime: meta.mime_type || r2.headers.get("content-type") || "audio/ogg" };
 }
