@@ -200,8 +200,8 @@ async function marcarFalla(f, store) {
 async function retomar(telefono, deps, opciones) {
   const tel = digitos(telefono); const conv = tel ? await deps.store.get(tel) : null;
   if (!conv) return { tipo: "sin_conversacion" };
-  if (conv.derivado) return { tipo: "ya_derivada" };
   const h = conv.historial || []; const ult = h[h.length - 1];
+  if (conv.derivado && !(ult && ult.role === "user")) return { tipo: "ya_derivada" }; // derivada: solo se retoma si la persona escribió algo sin respuesta
   const sinRespuesta = !h.some((x) => x.role === "user"); // lead que nunca contestó: se puede reenviar la apertura a pedido
   const pendiente = (ult && (ult.role === "user" || ult.enviado === false)) || (opciones && opciones.reenviarApertura && sinRespuesta);
   if (!pendiente) return { tipo: "sin_pendiente" };
@@ -212,10 +212,14 @@ async function retomar(telefono, deps, opciones) {
     let resp = null; try { resp = await deps.claude(cuerpoClaude(conv)); } catch (e) { return { tipo: "error", error: String(e && e.message) }; }
     const le = leerRespuesta(resp);
     if (le.rechazo) return { tipo: "rechazo" };
-    if (le.derivar) { await derivar(conv, le.derivar, deps); salida = le.texto || MSG_DERIVACION; } else salida = le.texto;
+    if (conv.derivado) {
+      if (le.nota) { const L = conv.lead || {}; try { await deps.notificarEspecialista(`📝 Actualización IAsapre\nLead: ${L.nombre || conv.nombrePerfil || "Sin nombre"} · ${fmtCL(conv.telefono) || conv.telefono}\n${guard(le.nota)}`, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: "Media" }); } catch (e) {} }
+      salida = le.texto || MSG_POST_DERIVACION;
+    } else if (le.derivar) { await derivar(conv, le.derivar, deps); salida = le.texto || MSG_DERIVACION; } else salida = le.texto;
     salida = guard(salida) || MSG_ERROR;
     r = await deps.enviarTexto(tel, salida);
   } else {
+    if (conv.derivado) return { tipo: "ya_derivada" }; // fuera de 24 h y derivada: la toma el especialista
     if (!deps.plantillaInicio) return { tipo: "ventana_cerrada_sin_plantilla" };
     const nombre = ((conv.lead && conv.lead.nombre) || conv.nombrePerfil || "").split(" ")[0] || "hola";
     r = await deps.enviarPlantilla(tel, deps.plantillaInicio, [nombre]);

@@ -29,6 +29,7 @@ const T=[
  {f:"retomar.js",nm:"Retomar conversaciones sin responder (24 h, plantilla, derivadas)",ok:o=>/Retomar OK/.test(o)},
  {f:"entrega.js",nm:"Fallas de entrega de Meta marcadas y retomables",ok:o=>/Entrega OK/.test(o)},
  {f:"post_derivacion.js",nm:"Después de derivar: respuestas adaptadas, sin repetir, notas al especialista",ok:o=>/Post-derivación OK/.test(o)},
+ {f:"vigia.js",nm:"Vigía: conexión, retomadas automáticas y avisos",ok:o=>/Vigía OK/.test(o)},
  {f:"sim3.js",sim:1,a:["6000"],nm:"Simulación v3 (6.000 conv.)",ok:o=>num(/Comprensión: ([\d.]+)%/,o)>=99&&num(/salud mental: (\d+)/,o)===0&&num(/derivación no pedida: ([\d.]+)%/,o)===0},
  {f:"sim.js",sim:1,a:["4000"],nm:"Simulación v1 (4.000 conv.)",ok:o=>num(/Comprensión[^:]*: ([\d.]+)%/,o)>=98},
  {f:"ui_smoke.js",nm:"UI: burbujas iniciales (jsdom)",e2e:1,ok:o=>/Burbujas iniciales: \d+/.test(o)},

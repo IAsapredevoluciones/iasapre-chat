@@ -25,8 +25,10 @@ function mocks(claudeTxt) { const mem = new Map(), enviados = [], plantillas = [
   M = mocks(); M.deps.plantillaInicio = ""; M.mem.set("56911110004", { telefono: "56911110004", historial: [{ role: "user", content: "hola", t: ahora - 30 * 3600 * 1000 }], derivado: false });
   r = await A.retomar("56911110004", M.deps); ok(r.tipo === "ventana_cerrada_sin_plantilla" && M.plantillas.length === 0, "sin plantilla → no envía nada");
   // 5) derivada → no se toca; inexistente
-  M = mocks(); M.mem.set("56911110005", { telefono: "56911110005", historial: [{ role: "user", content: "x", t: ahora }], derivado: true });
-  r = await A.retomar("56911110005", M.deps); ok(r.tipo === "ya_derivada" && M.enviados.length === 0, "derivada → no se retoma");
+  M = mocks(); M.mem.set("56911110005", { telefono: "56911110005", historial: [{ role: "user", content: "x", t: ahora - 1000 }, { role: "assistant", content: "Te paso", t: ahora }], derivado: true });
+  r = await A.retomar("56911110005", M.deps); ok(r.tipo === "ya_derivada" && M.enviados.length === 0, "derivada sin mensaje nuevo → no se retoma");
+  M = mocks(); M.mem.set("56911110007", { telefono: "56911110007", historial: [{ role: "assistant", content: "Te paso", t: ahora - 5000 }, { role: "user", content: "gracias", t: ahora - 1000 }], derivado: true });
+  r = await A.retomar("56911110007", M.deps); ok(r.tipo === "retomada" && M.enviados.length === 1, "derivada con mensaje nuevo → se responde");
   r = await A.retomar("56900000000", M.deps); ok(r.tipo === "sin_conversacion", "inexistente");
   // 6) si Claude pide derivar al retomar, se deriva
   M = mocks(); M.deps.claude = async () => ({ stop_reason: "tool_use", content: [{ type: "text", text: "Te paso con el equipo." }, { type: "tool_use", name: "derivar", input: { motivo: "pide persona", urgencia: "Alta", conversado: "x" } }] });

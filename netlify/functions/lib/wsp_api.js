@@ -81,6 +81,18 @@ async function descargarMedia(mediaId) {
 }
 
 /** Estados de entrega con error (p. ej. plantilla no aprobada, ventana de 24 h cerrada): [{code, title}] sin datos personales. */
+/** Verifica que el token y el número sirvan para enviar (GET /{phone_number_id}). {ok, error, numero}. */
+async function verificarConexion() {
+  const c = cfg(); if (!c.token || !c.phoneId) return { ok: false, error: "Faltan WSP_TOKEN o WSP_PHONE_NUMBER_ID" };
+  try {
+    const { fetchT } = require("./stt.js");
+    const r = await fetchT(`${API}/${c.phoneId}?fields=id,display_phone_number,quality_rating`, { headers: { Authorization: "Bearer " + c.token } }, 6000);
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, error: `${r.status} ${(j.error && j.error.message) || ""}`.trim() };
+    return { ok: true, numero: j.display_phone_number || "", calidad: j.quality_rating || "" };
+  } catch (e) { return { ok: false, error: String((e && (e.name === "AbortError" ? "tiempo agotado" : e.message)) || e) }; }
+}
+
 /** Igual que estadosFallidos pero con el id del mensaje (wamid) y el destinatario, para marcar la conversación. No usar en logs. */
 function fallasEntrega(body) {
   const out = [];
@@ -100,4 +112,4 @@ function estadosFallidos(body) {
   return out;
 }
 
-module.exports = { enviarTexto, enviarPlantilla, marcarLeido, verificarFirma, verificarWebhook, parsearWebhook, estadosFallidos, fallasEntrega, descargarMedia, cfg, digitos };
+module.exports = { enviarTexto, enviarPlantilla, marcarLeido, verificarFirma, verificarWebhook, parsearWebhook, estadosFallidos, fallasEntrega, descargarMedia, verificarConexion, cfg, digitos };

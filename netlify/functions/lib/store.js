@@ -88,6 +88,12 @@ async function listarEventos(n) {
   return out;
 }
 
+// Estado del canal (salud de la conexión con WhatsApp, última revisión del vigía). Store "estado".
+const memEstado = new Map();
+function tiendaEstado() { try { return blobs ? blobs.getStore(modoClasico ? { name: "estado" } : { name: "estado", consistency: "strong" }) : null; } catch (e) { return null; } }
+async function getEstado(k) { const s = tiendaEstado(); if (s) { try { const v = await s.get(k, { type: "json" }); if (v) return v; } catch (e) {} } return memEstado.get(k) || null; }
+async function setEstado(k, v) { const s = tiendaEstado(); if (s) { try { await s.setJSON(k, v); return true; } catch (e) { console.error("blobs estado", e && e.message); } } memEstado.set(k, v); return true; }
+
 const memoria = { get: (k) => mem.get(String(k).replace(/\D/g, "")) || null, set: (k, v) => { mem.set(String(k).replace(/\D/g, ""), v); }, clear: () => mem.clear() };
 
-module.exports = { conectar, getConv, setConv, delConv, listarConvs, registrarEvento, listarEventos, fusionar, memoria };
+module.exports = { conectar, getConv, setConv, delConv, listarConvs, registrarEvento, listarEventos, getEstado, setEstado, fusionar, memoria };

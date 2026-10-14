@@ -25,14 +25,22 @@ function autorizado(event, env) {
 }
 
 /** Conversación con la persona esperando respuesta (último turno suyo, o último envío del bot fallido) y no derivada. */
-const pendiente = (c) => { const h = c.historial || [], u = h[h.length - 1]; return !!(u && !c.derivado && (u.role === "user" || u.enviado === false)); };
+const pendiente = (c) => { const h = c.historial || [], u = h[h.length - 1]; return !!(u && (u.role === "user" || (!c.derivado && u.enviado === false))); };
+
+/** Aviso de salud del canal (lo escribe el vigía cada 10 min). */
+function bannerSalud(salud) {
+  if (!salud) return "";
+  const cuando = salud.revisado ? hora(salud.revisado) : "";
+  if (salud.conexion && salud.conexion.ok === false) return `<div class=box style="border:2px solid #e96f9a;background:#fff0f4"><b>⚠️ WhatsApp desconectado</b> desde ${esc(hora(salud.caidaDesde || salud.revisado))}: ${esc(salud.conexion.error || "")}.<br>El asistente no puede enviar mensajes. Suele deberse a que Meta pidió confirmar la cuenta de desarrollador o a que venció el token (WSP_TOKEN). <small>Última revisión: ${esc(cuando)}</small></div>`;
+  return `<div class=box><small>✅ Conexión con WhatsApp OK · revisión automática ${esc(cuando)}${salud.retomadas ? ` · ${salud.retomadas} conversación(es) retomadas en la última revisión` : ""}${salud.sinWebhookDesde ? ` · ⚠️ Meta no envía mensajes desde ${esc(hora(salud.sinWebhookDesde))}` : ""}</small></div>`;
+}
 const btnRetomar = (c, aviso) => `<form method="post" action="?tel=${esc(c.telefono)}" style="display:inline"><input type="hidden" name="accion" value="retomar"><button class="b" style="cursor:pointer;border:0;background:#2f5fd8;color:#fff">${aviso ? "Retomar (responder ahora)" : "Retomar"}</button></form>`;
 
-function vistaLista(convs, msg) {
+function vistaLista(convs, msg, salud) {
   const filas = convs.map((c) => { const L = c.lead || {}; const ult = c.historial && c.historial.length ? c.historial[c.historial.length - 1] : null; const pend = pendiente(c);
     return `<tr${pend ? ' style="background:#fff7e6"' : ""}><td><a href="?tel=${esc(c.telefono)}"><b>${esc(L.nombre || c.nombrePerfil || "Sin nombre")}</b></a><br><small>${esc(fmtCL(c.telefono) || c.telefono)}</small></td><td>${c.derivado ? '<span class="b der">derivada</span>' : pend ? '<span class="b no">sin responder</span> ' + btnRetomar(c) : '<span class="b">en asesoría</span>'}${L.leadId ? ' <span class="b">lead</span>' : ""}${c.asignaciones ? ` <small>${c.asignaciones} asig.</small>` : ""}</td><td>${(c.historial || []).length} turnos<br><small>${esc(hora(c.actualizado || c.creado))}</small></td><td><small>${esc(ult ? (ult.role === "assistant" ? "Bot: " : "Persona: ") + String(ult.content || "").slice(0, 90) : "")}</small></td></tr>`; }).join("");
   const der = convs.filter((c) => c.derivado).length, pend = convs.filter(pendiente).length;
-  return pagina("Conversaciones", `${msg ? `<div class=box>${esc(msg)}</div>` : ""}<div class=box><b>${convs.length}</b> conversaciones · <b>${der}</b> derivadas · <b>${pend}</b> sin responder · ${convs.filter((c) => c.lead && c.lead.leadId).length} con lead de la plataforma. <small>Se guardan los últimos 80 turnos por persona. "Retomar" responde al mensaje pendiente (o reabre con la plantilla si pasaron más de 24 h). Para repetir una prueba, el especialista escribe <code>#reiniciar</code> al asistente.</small></div><table><tr><th>Persona</th><th>Estado</th><th>Actividad</th><th>Último mensaje</th></tr>${filas || '<tr><td colspan=4>Aún no hay conversaciones.</td></tr>'}</table>`);
+  return pagina("Conversaciones", `${bannerSalud(salud)}${msg ? `<div class=box>${esc(msg)}</div>` : ""}<div class=box><b>${convs.length}</b> conversaciones · <b>${der}</b> derivadas · <b>${pend}</b> sin responder · ${convs.filter((c) => c.lead && c.lead.leadId).length} con lead de la plataforma. <small>Se guardan los últimos 80 turnos por persona. "Retomar" responde al mensaje pendiente (o reabre con la plantilla si pasaron más de 24 h). Para repetir una prueba, el especialista escribe <code>#reiniciar</code> al asistente.</small></div><table><tr><th>Persona</th><th>Estado</th><th>Actividad</th><th>Último mensaje</th></tr>${filas || '<tr><td colspan=4>Aún no hay conversaciones.</td></tr>'}</table>`);
 }
 
 function vistaDetalle(c, msg) {
@@ -83,7 +91,7 @@ function crearHandler(depsOverride) {
     if (!clave(env)) return { statusCode: 503, headers: HEAD, body: pagina("Panel", "<div class=box>Falta configurar <code>PANEL_SECRET</code> (o <code>ASIGNAR_SECRET</code>) en Netlify → Environment variables, y redeployar.</div>") };
     if (!autorizado(event, env)) return noAutorizado();
     let store = depsOverride && depsOverride.store;
-    if (!store) { const st = require("./store.js"); st.conectar(event); store = { listar: st.listarConvs, obtener: st.getConv, eventos: st.listarEventos }; }
+    if (!store) { const st = require("./store.js"); st.conectar(event); store = { listar: st.listarConvs, obtener: st.getConv, eventos: st.listarEventos, salud: () => st.getEstado("salud") }; }
     const q = event.queryStringParameters || {};
     try {
       if (event.httpMethod === "POST") { // acciones del panel: retomar una conversación sin responder, asignar leads
@@ -114,9 +122,9 @@ function crearHandler(depsOverride) {
       if (q.tel) { const c = await store.obtener(q.tel); return { statusCode: c ? 200 : 404, headers: HEAD, body: c ? vistaDetalle(c) : pagina("No encontrada", "<div class=box>No hay conversación con ese número. <a href='?'>Volver</a></div>") }; }
       if (q.asignar) return { statusCode: 200, headers: HEAD, body: vistaAsignar() };
       if (q.eventos) return { statusCode: 200, headers: HEAD, body: vistaEventos(await store.eventos(Math.min(Number(q.n) || 150, 500))) };
-      return { statusCode: 200, headers: HEAD, body: vistaLista(await store.listar()) };
+      return { statusCode: 200, headers: HEAD, body: vistaLista(await store.listar(), "", store.salud ? await store.salud().catch(() => null) : null) };
     } catch (e) { console.error("panel", e && e.message); return { statusCode: 500, headers: HEAD, body: pagina("Error", "<div class=box>Error al leer el almacén.</div>") }; }
   };
 }
 
-module.exports = { crearHandler, autorizado, vistaLista, vistaDetalle, vistaEventos, vistaAsignar, leerLeads, mismoOrigen, esc, pendiente };
+module.exports = { bannerSalud, crearHandler, autorizado, vistaLista, vistaDetalle, vistaEventos, vistaAsignar, leerLeads, mismoOrigen, esc, pendiente };
