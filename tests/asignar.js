@@ -20,6 +20,11 @@ function mocks() { const mem = new Map(), enviados = [], plantillas = []; return
   ok(r.statusCode === 200 && JSON.parse(r.body).accion === "abierta" && M.enviados.length === 2, "asignación por texto con el formato oficial");
   r = await H({ httpMethod: "POST", headers: { authorization: "Bearer secreto-asignar" }, body: JSON.stringify({ nombre: "Luis Prueba", telefono: "+56 9 7777 0000", leadId: "L-3", edad: 28, isapre: "Banmédica", comuna: "Santiago", preexistencias: "Cancer de Pulmon, Cancer de mama", tipo: "Orientación", resumen: "Isapre/Previsión actual: Banmédica | Renta imponible: 2000000" }) });
   const c3 = M.mem.get("56977770000"); ok(r.statusCode === 200 && c3 && c3.lead.edad === "28" && c3.lead.isapre === "Banmédica" && /Cancer de mama/.test(c3.lead.preexistencias) && c3.lead.tipo === "Orientación" && /Banmédica/.test(c3.lead.resumen), "campos opcionales llegan al lead guardado");
+  const envOrig = M.deps.enviarTexto; M.deps.enviarTexto = async () => ({ ok: false, status: 400, error: "API access blocked." });
+  r = await H({ httpMethod: "POST", headers: { authorization: "Bearer secreto-asignar" }, body: JSON.stringify({ nombre: "Francisca Garay Aguirre", telefono: "+56 9 9639 6097", leadId: "L-F" }) });
+  const bF = JSON.parse(r.body); M.deps.enviarTexto = envOrig;
+  ok(r.statusCode === 200 && bF.enviado === false && /desconectado temporalmente/.test(bF.error) && bF.reintento_automatico === true && !/inválido/.test(bF.error), "envío bloqueado → motivo real y reintento automático, no 'número inválido': " + r.body);
+  ok(/API access blocked/.test(M.mem.get("56996396097").historial[0].falla || ""), "la falla queda en la conversación");
   M.deps.store.del = async (k) => { M.mem.delete(k); };
   r = await H({ httpMethod: "POST", headers: { authorization: "Bearer secreto-asignar" }, body: JSON.stringify({ reiniciar: "+56 9 9015 6640" }) });
   ok(r.statusCode === 200 && JSON.parse(r.body).tipo === "reinicio" && !M.mem.get("56990156640") && M.mem.get("56955550000"), "reiniciar borra solo esa conversación");

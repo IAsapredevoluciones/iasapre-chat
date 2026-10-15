@@ -48,8 +48,9 @@ function crearHandler(depsOverride) {
     try {
       const r = await manejarEntrante({ from: NUMEROS.asignaciones, nombre: "Plataforma", texto }, deps);
       console.log("asignar", JSON.stringify({ tipo: r.tipo, accion: r.accion, enviado: r.enviado })); // sin datos personales
-      if (!depsOverride) { try { const st = require("./store.js"); await st.registrarEvento({ canal: "http", tipo: r.tipo, accion: r.accion, enviado: r.enviado, de: "app.iasapre.cl", lead: r.telefono }); } catch (e) {} }
-      return json(r.tipo === "asignacion" ? 200 : 422, { ok: r.tipo === "asignacion", tipo: r.tipo, accion: r.accion, enviado: r.enviado });
+      if (!depsOverride) { try { const st = require("./store.js"); await st.registrarEvento({ canal: "http", tipo: r.tipo, accion: r.accion, enviado: r.enviado, de: "app.iasapre.cl", lead: r.telefono, error: r.error }); } catch (e) {} }
+      const motivo = r.enviado === false ? (/access blocked|190|401|token|session/i.test(r.error || "") ? "WhatsApp del asistente desconectado temporalmente (" + r.error + ")" : /131026|not a valid WhatsApp|incapable|undeliverable/i.test(r.error || "") ? "número inválido o sin WhatsApp (" + r.error + ")" : r.error) : undefined;
+      return json(r.tipo === "asignacion" ? 200 : 422, { ok: r.tipo === "asignacion", tipo: r.tipo, accion: r.accion, enviado: r.enviado, ...(motivo ? { error: motivo, reintento_automatico: true } : {}) });
     } catch (e) { console.error("asignar", e && e.message); return json(500, { error: "Error al procesar la asignación" }); }
   };
 }

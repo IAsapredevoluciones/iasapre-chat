@@ -39,7 +39,7 @@ Las líneas "Contacto rápido" (link wa.me con el teléfono) y "Gestión en la p
 |---|---|---|
 | 200 | `{"ok":true,"tipo":"asignacion","accion":"abierta","enviado":true}` | lead nuevo: el bot le mandó la apertura por WhatsApp (plantilla aprobada `asesoria_inicio`) |
 | 200 | `{"ok":true,"tipo":"asignacion","accion":"retomada"}` | la persona ya conversaba con el bot: se actualizaron sus datos, sin saludar de nuevo |
-| 200 | `{"ok":true,"tipo":"asignacion","accion":"abierta","enviado":false}` | se registró, pero WhatsApp rechazó el envío (número inválido, sin WhatsApp, etc.); reintentar más tarde o avisar |
+| 200 | `{"ok":true,"tipo":"asignacion","accion":"abierta","enviado":false,"error":"…","reintento_automatico":true}` | se registró pero WhatsApp no envió la apertura. **Mostrar `error` tal cual** (no asumir "número inválido"): puede ser "WhatsApp del asistente desconectado temporalmente" o "número inválido o sin WhatsApp". El vigía del bot **reintenta solo** cada 10 minutos (hasta 7 días); no hace falta reenviar desde la plataforma |
 | 400 | `{"error":"Falta el teléfono del lead…"}` / `JSON inválido` | corregir el cuerpo |
 | 401 | `{"error":"No autorizado"}` | secreto incorrecto |
 | 422 | `{"ok":false,"tipo":"asignacion_invalida"}` | el texto no tiene el formato esperado |

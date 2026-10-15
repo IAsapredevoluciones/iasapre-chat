@@ -18,6 +18,11 @@ const fails = []; const ok = (c, m) => { if (!c) fails.push(m); };
   ok(s.conexion.ok && retomados.join(",") === "56961255493,56996991542" && s.retomadas === 2, "retoma pendientes de < 24 h (incluida la derivada con mensaje nuevo): " + retomados);
   ok(!retomados.includes("56900000001") && !retomados.includes("56900000002") && !retomados.includes("56900000003"), "no toca > 24 h, ya respondidas ni mensajes de hace segundos");
   ok(eventos.filter((e) => e.tipo === "retomada_auto").length === 2, "evento por cada retomada automática");
+  // apertura que no salió (WhatsApp caído) → se reintenta aunque pasen más de 24 h (con plantilla, dentro de 7 días)
+  const conA = [{ telefono: "56996396097", lead: { nombre: "Francisca Garay" }, derivado: false, historial: [{ role: "assistant", content: "[Plantilla asesoria_inicio] Hola Francisca!", t: ahora - 30 * h, enviado: false, falla: "400 API access blocked" }] },
+    { telefono: "56900000009", derivado: false, historial: [{ role: "assistant", content: "[Plantilla] Hola", t: ahora - 8 * 24 * h, enviado: false }] }];
+  retomados = []; await V.ejecutar({ ...deps, listarConvs: async () => conA }, ahora);
+  ok(retomados.join(",") === "56996396097", "reintenta aperturas fallidas < 7 días y no las más viejas: " + retomados);
   // desconexión: aviso y evento solo la primera vez
   conexion = { ok: false, error: "401 Error validating access token" }; retomados = []; eventos = [];
   s = await V.ejecutar(deps, ahora + 10 * min); await V.ejecutar(deps, ahora + 20 * min);

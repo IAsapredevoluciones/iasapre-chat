@@ -5,12 +5,16 @@
 // 3) Avisa en el panel si Meta lleva horas sin enviar mensajes al webhook habiendo conversaciones activas.
 const VENTANA = 23.5 * 3600 * 1000, ESPERA = 90 * 1000, MAX_POR_VUELTA = 20;
 
+const VENTANA_APERTURA = 7 * 24 * 3600 * 1000; // aperturas que no salieron (p. ej. WhatsApp caído): se reintentan con plantilla hasta 7 días
+
+/** Momento desde el que la conversación espera algo del asistente, o null. Las aperturas fallidas (sin respuesta de la persona) cuentan. */
 function pendienteDe(c) {
   const h = c.historial || [], u = h[h.length - 1]; if (!u) return null;
   if (u.role === "user") return u.t || 0;
   if (!c.derivado && u.enviado === false) { const uu = [...h].reverse().find((x) => x.role === "user"); return uu ? uu.t || 0 : null; }
   return null;
 }
+function aperturaFallida(c) { const h = c.historial || [], u = h[h.length - 1]; return !c.derivado && u && u.role === "assistant" && u.enviado === false && !h.some((x) => x.role === "user") ? u.t || 0 : null; }
 
 async function ejecutar(deps, ahora) {
   ahora = ahora || Date.now();
@@ -25,7 +29,8 @@ async function ejecutar(deps, ahora) {
   }
   if (previo.conexion && previo.conexion.ok === false) await deps.registrarEvento({ canal: "vigia", tipo: "reconectado", error: "" }).catch(() => {});
   const convs = await deps.listarConvs();
-  const pendientes = convs.map((c) => ({ c, t: pendienteDe(c) })).filter((x) => x.t != null && ahora - x.t > ESPERA && ahora - x.t < VENTANA).sort((a, b) => a.t - b.t).slice(0, MAX_POR_VUELTA);
+  const pendientes = convs.map((c) => { const t = pendienteDe(c); if (t != null) return { c, t, max: VENTANA }; const ta = aperturaFallida(c); return ta != null ? { c, t: ta, max: VENTANA_APERTURA } : null; })
+    .filter((x) => x && ahora - x.t > ESPERA && ahora - x.t < x.max).sort((a, b) => a.t - b.t).slice(0, MAX_POR_VUELTA);
   for (const { c } of pendientes) {
     let r; try { r = await deps.retomar(c.telefono); } catch (e) { r = { tipo: "error", error: String(e && e.message) }; }
     if (r && (r.tipo === "retomada" || r.tipo === "reabierta")) salud.retomadas++;
@@ -46,4 +51,4 @@ function depsReales() {
     retomar: (tel) => A.retomar(tel, A.depsReales({ moderno: true })) };
 }
 
-module.exports = { ejecutar, depsReales, pendienteDe };
+module.exports = { ejecutar, depsReales, pendienteDe, aperturaFallida };

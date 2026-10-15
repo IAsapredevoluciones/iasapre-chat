@@ -140,9 +140,9 @@ async function manejarEntrante(msg, deps) {
       const le = leerRespuesta(resp); apertura = guard(le.texto) || `Hola ${asig.nombre.split(" ")[0] || ""}! ¿Cómo estás? Te escribe el asistente de IAsapre porque pediste asesoría sobre tu plan de salud. Es gratis y sin compromiso. ¿Te acomoda que lo veamos por acá?`;
       r = await deps.enviarTexto(tel, apertura);
     }
-    conv.historial.push({ role: "assistant", content: apertura, t: Date.now(), enviado: !!(r && r.ok), wamid: (r && r.id) || undefined });
+    conv.historial.push({ role: "assistant", content: apertura, t: Date.now(), enviado: !!(r && r.ok), wamid: (r && r.id) || undefined, falla: r && !r.ok ? String(r.error || "").slice(0, 160) || undefined : undefined });
     await deps.store.set(tel, conv);
-    return { tipo: "asignacion", telefono: tel, accion: "abierta", enviado: !!(r && r.ok) };
+    return { tipo: "asignacion", telefono: tel, accion: "abierta", enviado: !!(r && r.ok), error: r && !r.ok ? String(r.error || "error de WhatsApp") : undefined };
   }
 
   // 2) Conversación con una persona
