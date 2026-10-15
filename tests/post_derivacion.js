@@ -30,6 +30,18 @@ const fails = []; const ok = (c, m) => { if (!c) fails.push(m); };
   ok(avisos.length === 2 && enviados[3] === "Claro, ya está con el especialista.", "no se deriva dos veces");
   // 5) rol: nombre y no repetir
   ok(/no lo repitas en cada mensaje/.test(W.ROL) && /Nunca repitas el aviso de derivación/.test(W.ROL) && /nota_especialista/.test(W.ROL) && /No vuelvas a derivar/.test(W.ROL), "rol: no repetir nombre ni aviso; usar nota_especialista");
+  ok(/🔔 Derivación IAsapre/.test(mem.get("56996991542").resumenDerivacion || ""), "el resumen de la derivación queda guardado en la conversación");
+  // reenviar aviso
+  const av = []; const rr = await A.reenviarAviso("56996991542", { ...deps, notificarEspecialista: async (res, meta) => { av.push({ res, meta }); return [{ ok: true }]; } });
+  ok(rr.tipo === "aviso_reenviado" && rr.enviado && av.length === 1 && /🔔 Derivación IAsapre/.test(av[0].res) && av[0].meta.urgencia === "Media", "reenviar aviso usa el resumen guardado");
+  mem.set("56911112222", { telefono: "56911112222", nombrePerfil: "Juan", derivado: true, historial: [] });
+  const r2 = await A.reenviarAviso("56911112222", { ...deps, notificarEspecialista: async (res, meta) => { av.push({ res, meta }); return [{ ok: true }]; } });
+  ok(r2.tipo === "aviso_reenviado" && /Juan/.test(av[1].res), "derivada antigua sin resumen: aviso básico");
+  const r3 = await A.reenviarAviso("56900000000", deps); ok(r3.tipo === "sin_conversacion", "inexistente");
+  // falla de un aviso al especialista no marca su conversación
+  const memE = new Map([["56985380357", { telefono: "56985380357", historial: [{ role: "assistant", content: "hola Nico", t: 1, enviado: true }] }]]);
+  const marcado = await A.marcarFalla({ para: "56985380357", id: "wamid.aviso", code: 131047 }, { get: async (k) => memE.get(k), set: async (k, v) => memE.set(k, v) });
+  ok(marcado === false && memE.get("56985380357").historial[0].enviado === true, "falla de un aviso al especialista no ensucia su conversación");
   if (fails.length) { console.log("✘ Post-derivación: " + fails.length + " fallas\n - " + fails.join("\n - ")); process.exit(1); }
   console.log("Post-derivación OK: una sola derivación y notificación, respuestas adaptadas, notas al especialista, sin repetir nombre ni aviso");
 })();

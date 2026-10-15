@@ -110,7 +110,7 @@ function leerRespuesta(resp) {
 async function derivar(conv, input, deps, motivoExtra) {
   const L = conv.lead || {};
   const d = formatDerivacion({ ...input, nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, motivo: input.motivo || motivoExtra });
-  conv.derivado = true; conv.derivadoEn = new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" });
+  conv.derivado = true; conv.derivadoEn = new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" }); conv.resumenDerivacion = d;
   try { await deps.notificarEspecialista(d, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: (input.urgencia || "Media") }); } catch (e) { console.error("derivación", e && e.message); }
   return d;
 }
@@ -187,6 +187,8 @@ const MOTIVO_FALLA = { 131042: "la cuenta de WhatsApp no tiene método de pago (
 async function marcarFalla(f, store) {
   if (!f || !f.para) return false; const conv = await store.get(f.para); if (!conv || !conv.historial) return false;
   let turno = conv.historial.find((h) => h.role === "assistant" && h.wamid && h.wamid === f.id);
+  // Al número del especialista también van los avisos de derivación (no están en su conversación): sin wamid exacto no se marca nada.
+  if (!turno && digitos(f.para) === digitos(process.env.WSP_ESPECIALISTA || NUMEROS.especialista)) return false;
   if (!turno) turno = [...conv.historial].reverse().find((h) => h.role === "assistant");
   if (!turno) return false;
   turno.enviado = false; turno.falla = `${f.code || ""} ${MOTIVO_FALLA[f.code] || f.title || ""}`.trim();
@@ -245,6 +247,18 @@ async function recuperar(conv, deps) {
   return { tipo: "recuperada", enviado: !!(r && r.ok), error: r && !r.ok ? r.error : undefined };
 }
 
+/** Reenvía al especialista el aviso de una conversación ya derivada (p. ej. si el aviso original no llegó). */
+async function reenviarAviso(telefono, deps) {
+  const tel = digitos(telefono); const conv = tel ? await deps.store.get(tel) : null;
+  if (!conv) return { tipo: "sin_conversacion" };
+  if (!conv.derivado) return { tipo: "no_derivada" };
+  const L = conv.lead || {};
+  const resumen = conv.resumenDerivacion || formatDerivacion({ nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, motivo: "derivada (aviso reenviado desde el panel)", conversado: "Ver la conversación completa en el panel." });
+  const rs = await deps.notificarEspecialista(resumen, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: (/Urgencia: (Alta|Media|Baja)/.exec(resumen) || [])[1] || "Media" });
+  const ok = Array.isArray(rs) ? !!(rs[0] && rs[0].ok) : !!(rs && rs.ok);
+  return { tipo: "aviso_reenviado", enviado: ok };
+}
+
 /** deps reales (WhatsApp, Claude, Blobs) para usar fuera del webhook (panel). */
 function depsReales(event) {
   const wsp = require("./wsp_api.js"), store = require("./store.js"), stt = require("./stt.js"); const env = process.env; store.conectar(event);
@@ -257,14 +271,31 @@ function depsReales(event) {
  *  (funciona si el especialista le escribió al asistente en las últimas 24 h); si rebota (ventana cerrada), la plantilla
  *  aprobada WSP_TEMPLATE_DERIVACION (nombre, teléfono, urgencia, link). Cada fallo se registra sin datos personales.
  *  Discord NUNCA recibe el detalle (datos de salud): solo nombre, teléfono, urgencia y link. */
-function crearNotificador(wsp, env) {
+const PANEL_URL = process.env.PANEL_URL || "https://iasapre-chat.netlify.app/.netlify/functions/panel";
+const VENTANA_ESP = 23 * 3600 * 1000;
+/** Último mensaje que el especialista le escribió al asistente (abre la ventana de 24 h para texto libre). */
+async function ultimoDelEspecialista(esp) {
+  try { const c = await require("./store.js").getConv(esp); const u = c && [...(c.historial || [])].reverse().find((h) => h.role === "user"); return u ? u.t || 0 : 0; } catch (e) { return 0; }
+}
+function crearNotificador(wsp, env, opciones) {
   env = env || process.env;
+  const ultimoEsp = (opciones && opciones.ultimoEsp) || ultimoDelEspecialista;
+  const plantilla = (esp, meta) => wsp.enviarPlantilla(esp, env.WSP_TEMPLATE_DERIVACION, [meta.nombre || "Sin nombre", fmtCL(meta.telefono) || meta.telefono || "", meta.urgencia || "Media", PANEL_URL + "?tel=" + digitos(meta.telefono)]);
   async function porWhatsApp(esp, resumen, meta) {
+    // Texto libre solo llega si el especialista escribió al asistente en las últimas 24 h. Meta acepta el envío igual y avisa
+    // el rechazo después (131047), así que se decide ANTES: fuera de la ventana va directo la plantilla (con link al panel, donde está el resumen).
+    const t = await ultimoEsp(esp);
+    const dentro = t && Date.now() - t < VENTANA_ESP;
+    if (!dentro && env.WSP_TEMPLATE_DERIVACION) {
+      const rp = await plantilla(esp, meta);
+      if (!(rp && rp.ok)) console.error("derivación: plantilla al especialista rebotó", rp && rp.status, rp && rp.error);
+      return rp || { ok: false };
+    }
     let r = await wsp.enviarTexto(esp, resumen);
     if (r && r.ok) return r;
     console.error("derivación: texto al especialista rebotó", r && r.status, r && r.error);
     if (!env.WSP_TEMPLATE_DERIVACION) return r || { ok: false };
-    r = await wsp.enviarPlantilla(esp, env.WSP_TEMPLATE_DERIVACION, [meta.nombre || "Sin nombre", fmtCL(meta.telefono) || meta.telefono || "", meta.urgencia || "Media", meta.leadId ? "https://app.iasapre.cl/?lead=" + meta.leadId : "sin ID"]);
+    r = await plantilla(esp, meta);
     if (!(r && r.ok)) console.error("derivación: plantilla al especialista rebotó", r && r.status, r && r.error);
     return r || { ok: false };
   }
@@ -332,4 +363,4 @@ function crearHandler(depsOverride) {
   };
 }
 
-module.exports = { manejarEntrante, retomar, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, TOOLS_DERIVADA, MSG_POST_DERIVACION, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
+module.exports = { manejarEntrante, retomar, reenviarAviso, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, TOOLS_DERIVADA, MSG_POST_DERIVACION, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
