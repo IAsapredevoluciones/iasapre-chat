@@ -161,10 +161,21 @@ async function rehacerResumen(telefono, deps) {
 }
 /** Derivada en cola cuyo resumen es del formato antiguo (sin afiliabilidad). */
 const resumenAntiguo = (c) => avisoPendiente(c) && !/Afiliabilidad:/.test(c.resumenDerivacion || "");
+/** Panel: vuelve a poner en cola las derivadas recientes con resumen antiguo, para que el vigía las rehaga y se las reenvíe completas al especialista. */
+async function marcarParaRehacer(deps) {
+  let n = 0;
+  for (const c of await deps.listarConvs()) {
+    if (!(c.derivado && c.avisoEntregado !== false && Date.now() - tDerivacion(c) < DIAS_AVISO && !/Afiliabilidad:/.test(c.resumenDerivacion || ""))) continue;
+    const conv = await deps.store.get(c.telefono); if (!conv) continue;
+    conv.avisoEntregado = false; await deps.store.set(c.telefono, conv); n++;
+  }
+  return n;
+}
 /** Manda al especialista, como texto, los resúmenes de derivación en cola (solo funciona con su ventana de 24 h abierta: se llama cuando él escribe). */
-async function entregarAvisos(deps, esp) {
+async function entregarAvisos(deps, esp, opciones) {
   const lista = deps.listarConvs ? await deps.listarConvs() : [];
-  const pend = lista.filter((c) => digitos(c.telefono) !== esp && avisoPendiente(c)).sort((a, b) => tDerivacion(a) - tDerivacion(b)).slice(0, 25);
+  const soloCompletos = opciones && opciones.soloCompletos; // el vigía espera a que el resumen esté rehecho con el formato completo
+  const pend = lista.filter((c) => digitos(c.telefono) !== esp && avisoPendiente(c) && !(soloCompletos && resumenAntiguo(c))).sort((a, b) => tDerivacion(a) - tDerivacion(b)).slice(0, 25);
   let n = 0;
   for (const c of pend) {
     const res = resumenDe(c); const r = await deps.enviarTexto(esp, /Conversación: http/.test(res) ? res : res + "\nConversación: " + PANEL_URL + "?tel=" + digitos(c.telefono));
@@ -435,4 +446,4 @@ function crearHandler(depsOverride) {
   };
 }
 
-module.exports = { manejarEntrante, retomar, reenviarAviso, entregarAvisos, rehacerResumen, resumenAntiguo, avisoPendiente, tDerivacion, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, TOOLS_DERIVADA, MSG_POST_DERIVACION, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
+module.exports = { manejarEntrante, retomar, reenviarAviso, entregarAvisos, rehacerResumen, resumenAntiguo, marcarParaRehacer, ultimoDelEspecialista, avisoPendiente, tDerivacion, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, TOOLS_DERIVADA, MSG_POST_DERIVACION, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };

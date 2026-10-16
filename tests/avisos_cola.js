@@ -79,6 +79,19 @@ const fails = []; const ok = (c, m) => { if (!c) fails.push(m); };
   ok(hechos.length === 1 && bodies[0].tool_choice.name === "derivar" && /formato antiguo/.test(JSON.stringify(bodies[0].messages)), "vigía pide el resumen completo forzando derivar");
   ok(/^⭐⭐ ALERTA: MUY AFILIABLE/.test(cr.resumenDerivacion) && /📝 16-10-2026, 10:00: Llamar en la tarde/.test(cr.resumenDerivacion) && /Edad: 34|Edad: 38/.test(cr.resumenDerivacion) && cr.afiliabilidad === "Muy afiliable" && !A.resumenAntiguo(cr) && A.avisoPendiente(cr), "resumen rehecho: alerta, notas, formulario y sigue en cola");
 
+  // 7) vigía con la ventana del especialista abierta: entrega solo los resúmenes ya completos
+  const entregas = [];
+  const conv7 = [{ ...cr }, { telefono: "56911112222", derivado: true, derivadoT: Date.now() - 3600000, avisoEntregado: false, resumenDerivacion: "🔔 Derivación IAsapre (antigua)" }];
+  const s7 = await V.ejecutar({ getEstado: async () => null, setEstado: async () => {}, registrarEvento: async () => {}, listarConvs: async () => conv7, verificarConexion: async () => ({ ok: true }), retomar: async () => ({}),
+    resumenAntiguo: A.resumenAntiguo, rehacerResumen: async () => false, ventanaEspecialista: async () => true,
+    entregarAvisos: async () => { const enviadosE = []; const d = { listarConvs: async () => conv7, store: { get: async () => null, set: async () => {} }, enviarTexto: async (to, b) => { enviadosE.push(b); return { ok: true }; } }; const e = await A.entregarAvisos(d, ESP, { soloCompletos: true }); entregas.push(...enviadosE); return e; } }, Date.now());
+  ok(s7.avisosEntregados === 1 && entregas.length === 1 && /MUY AFILIABLE/.test(entregas[0]), "vigía con ventana abierta entrega solo los resúmenes completos");
+  // 8) panel: rehacer marca las derivadas recientes con resumen antiguo
+  const mem8 = new Map([["1", { telefono: "1", derivado: true, derivadoT: Date.now() - 3600000, avisoEntregado: true, resumenDerivacion: "🔔 Derivación IAsapre" }], ["2", { telefono: "2", derivado: true, derivadoT: Date.now() - 3600000, avisoEntregado: true, resumenDerivacion: "Afiliabilidad: Afiliable" }]]);
+  const n8 = await A.marcarParaRehacer({ listarConvs: async () => [...mem8.values()], store: { get: async (k) => mem8.get(k), set: async (k, v) => mem8.set(k, v) } });
+  ok(n8 === 1 && mem8.get("1").avisoEntregado === false && mem8.get("2").avisoEntregado === true && A.resumenAntiguo(mem8.get("1")), "rehacer: solo las de resumen antiguo vuelven a la cola");
+  ok(/Rehacer resúmenes y reenviarlos/.test(P.vistaLista([mem8.get("2"), { telefono: "3", derivado: true, derivadoT: Date.now(), avisoEntregado: true, resumenDerivacion: "x" }], "", null)), "panel ofrece rehacer resúmenes antiguos");
+
   if (fails.length) { console.log("✘ Avisos en cola: " + fails.length + " fallas\n - " + fails.join("\n - ")); process.exit(1); }
   console.log("Avisos en cola OK: plantilla/cola/texto, notas en el resumen, entrega al escribir el especialista, #avisos, panel, vigía sin insistir");
 })().catch((e) => { console.log("✘ excepción: " + (e && e.stack)); process.exit(1); });
