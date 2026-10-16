@@ -147,14 +147,16 @@ async function avisarNota(conv, nota, deps) {
   let rs = null; try { rs = await deps.notificarEspecialista(aviso, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: "Media", soloTexto: true }); } catch (e) { console.error("nota especialista", e && e.message); }
   if (!entregadoComoTexto(rs)) conv.avisoEntregado = false;
 }
-const INSTR_RESUMEN = "Nota interna (no es un mensaje de la persona): esta conversación ya fue derivada al especialista, pero su resumen quedó con el formato antiguo e incompleto. Llama a la herramienta derivar con el resumen completo según la sección 3.3: todos los datos relevantes de la conversación y del formulario, la afiliabilidad con su razón, contacto preferido y el siguiente paso sugerido. No escribas nada a la persona.";
+const INSTR_RESUMEN = "Nota interna (no es un mensaje de la persona): esta conversación ya fue derivada al especialista, pero su resumen quedó con el formato antiguo e incompleto. Llama a la herramienta derivar con el resumen completo según la sección 3.3: todos los datos relevantes de la conversación y del formulario, la afiliabilidad con su razón, contacto preferido, un siguiente paso CONCRETO para el especialista (qué cotizar o gestionar, con qué clínicas y presupuesto) y el motivo de derivación. Completa todos los campos; ninguno vacío. No escribas nada a la persona.";
 /** Rehace con el formato completo (afiliabilidad, contacto, siguiente paso, formulario) el resumen de una derivada antigua. Conserva las notas 📝. */
 async function rehacerResumen(telefono, deps) {
   const tel = digitos(telefono); const conv = tel ? await deps.store.get(tel) : null;
   if (!conv || !conv.derivado) return false;
   const body = cuerpoClaude({ ...conv, derivado: false }, INSTR_RESUMEN); // tool_choice queda en auto: Opus 5.5 no acepta forzar herramienta (400)
   const le = leerRespuesta(await deps.claude(body)); if (!le.derivar) return false;
-  const L = conv.lead || {}; const notas = String(conv.resumenDerivacion || "").split("\n").filter((l) => /^📝 /.test(l));
+  const L = conv.lead || {}; const viejo = String(conv.resumenDerivacion || ""); const notas = viejo.split("\n").filter((l) => /^📝 /.test(l));
+  const motivoViejo = (/Motivo de derivación: (.+)/.exec(viejo) || [])[1]; const vacio = (x) => !x || !String(x).trim() || /^no informado$/i.test(String(x).trim());
+  if (vacio(le.derivar.motivo) && motivoViejo) le.derivar.motivo = motivoViejo; // el motivo original no se pierde
   conv.resumenDerivacion = formatDerivacion({ ...le.derivar, nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, formulario: L }) + (notas.length ? "\n" + notas.join("\n") : "");
   conv.afiliabilidad = le.derivar.afiliabilidad || "Por confirmar";
   await deps.store.set(tel, conv); return true;
