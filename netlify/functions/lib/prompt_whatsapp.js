@@ -83,18 +83,26 @@ Eres el asistente de asesoría de IAsapre (iasapre.cl). Hasta ahora has funciona
 
 3.3 En ese mismo momento envía un mensaje al ${NUMEROS.especialista} con este formato:
 
+   (⭐⭐ ALERTA: MUY AFILIABLE ⭐⭐ — solo si corresponde)
    🔔 Derivación IAsapre
    Lead: [Nombre] · [+56 9 XXXX XXXX]
    Plataforma: https://app.iasapre.cl/?lead=[id]
-   Previsión actual: [Isapre/plan o Fonasa]
+   Urgencia: [Alta/Media/Baja]
+   Afiliabilidad: [Muy afiliable / Afiliable / Afiliable con restricción / No afiliable / Por confirmar] — [por qué]
+   Previsión actual: [Isapre, plan y costo si lo dijo, o Fonasa]
    Edad / cargas: [...]
    Renta imponible: [...]
    Región / clínica: [...]
-   Preexistencias: [Sí/No/detalle breve]
+   Preexistencias: [detalle y clasificación]
+   Contacto preferido: [horario, canal, trato]
    Qué busca: [1–2 frases]
-   Lo conversado: [3–5 líneas con lo ya explicado y respondido]
+   Lo conversado: [lo explicado, recomendación dada, dudas y objeciones pendientes]
+   Siguiente paso sugerido: [qué debería hacer el especialista]
    Motivo de derivación: [por qué no se pudo resolver]
-   Urgencia: [Alta/Media/Baja]
+   📋 Datos del formulario de la plataforma (se agregan solos)
+
+   El resumen debe permitir que el especialista llame sin releer la conversación: incluye todo dato relevante que la persona haya dado (plan y precio actual, alzas, clínicas o médicos que usa, cirugías o tratamientos programados, embarazo o planes de familia, cargas y sus edades, situación laboral, dudas concretas).
+   Afiliabilidad (criterio interno, nunca se le dice a la persona como etiqueta): "Muy afiliable" = sin preexistencias o solo sin impacto / olvido oncológico, renta imponible informada y con interés en comparar o cambiarse; "Afiliable" = sin preexistencias relevantes pero falta algún dato o interés; "Afiliable con restricción" = solo patologías de la lista con restricción; "No afiliable" = alguna de la lista de NO AFILIABLES; "Por confirmar" = no se alcanzó a saber. Si la persona es muy afiliable y quiere comparar, ofrécele pronto que el especialista le muestre opciones concretas (deriva si acepta).
 
    Solo envías resúmenes a ${NUMEROS.especialista}. Nunca compartas datos de una persona con otra, ni con números distintos al del especialista. En "Preexistencias" nunca incluyas diagnósticos de salud mental (no son preexistencia y no se registran).
 
@@ -135,18 +143,36 @@ function parseAsignacion(texto, desde) {
 }
 
 /** Resumen de derivación para el especialista (formato 3.3). `d` = {nombre, telefono, leadId, prevision, edadCargas, renta, regionClinica, preexistencias, busca, conversado, motivo, urgencia} */
+// Privacidad: la salud mental no es preexistencia; no se registra en el resumen.
+const sinSaludMental = (s) => String(s || "").replace(/\b(depresi[oó]n|ansiedad|trastorno bipolar|bipolaridad|esquizofrenia|tdah|salud mental|psiqui[aá]tric[oa]s?|psicol[oó]gic[oa]s?)\b[^,;.]*[,;.]?\s*/gi, "").replace(/^[\s,;.]+|[\s,;]+$/g, "");
+const AFILIABILIDAD = ["Muy afiliable", "Afiliable", "Afiliable con restricción", "No afiliable", "Por confirmar"];
+const PANEL = "https://iasapre-chat.netlify.app/.netlify/functions/panel";
 function formatDerivacion(d) {
   d = d || {};
   const v = (x, def = "No informado") => (x == null || String(x).trim() === "" ? def : String(x).trim());
   const urg = /^(alta|media|baja)$/i.test(v(d.urgencia, "")) ? v(d.urgencia).replace(/^./, (c) => c.toUpperCase()) : "Media";
-  // Privacidad: la salud mental no es preexistencia; no se registra en el resumen.
-  const preex = v(d.preexistencias, "No").replace(/\b(depresi[oó]n|ansiedad|trastorno bipolar|bipolaridad|esquizofrenia|tdah|salud mental|psiqui[aá]tric[oa]s?|psicol[oó]gic[oa]s?)\b[^,;.]*[,;]?\s*/gi, "").replace(/^[\s,;]+|[\s,;]+$/g, "") || "No";
-  return ["🔔 Derivación IAsapre",
+  const preex = sinSaludMental(v(d.preexistencias, "No")) || "No";
+  const afil = AFILIABILIDAD.includes(d.afiliabilidad) ? d.afiliabilidad : "Por confirmar";
+  const motivoAfil = sinSaludMental(v(d.motivoAfiliabilidad, ""));
+  const F = d.formulario || {};
+  const form = [["Edad", F.edad], ["Isapre/previsión", F.isapre], ["Renta", F.renta], ["Región", F.region], ["Comuna", F.comuna], ["Clínica", F.clinica], ["Cargas", F.cargas], ["Contacto", F.contacto], ["Preexistencias", sinSaludMental(F.preexistencias)], ["Tipo", F.tipo]]
+    .filter(([, x]) => x && String(x).trim() && !/^no informado$/i.test(String(x).trim())).map(([k, x]) => `${k}: ${String(x).trim()}`).join(" · ");
+  const tel = String(d.telefono || "").replace(/\D/g, "");
+  return [...(afil === "Muy afiliable" ? ["⭐⭐ ALERTA: MUY AFILIABLE ⭐⭐" + (motivoAfil ? "\n" + motivoAfil : "")] : []),
+    "🔔 Derivación IAsapre",
     `Lead: ${v(d.nombre, "Sin nombre")} · ${v(fmtCL(d.telefono) || d.telefono, "sin teléfono")}`,
     `Plataforma: ${d.leadId ? "https://app.iasapre.cl/?lead=" + d.leadId : "sin ID de lead"}`,
+    ...(tel ? [`Conversación: ${PANEL}?tel=${tel}`] : []),
+    `Urgencia: ${urg}`,
+    `Afiliabilidad: ${afil}${motivoAfil && afil !== "Muy afiliable" ? " — " + motivoAfil : ""}`,
+    "", "👤 Perfil",
     `Previsión actual: ${v(d.prevision)}`, `Edad / cargas: ${v(d.edadCargas)}`, `Renta imponible: ${v(d.renta)}`,
-    `Región / clínica: ${v(d.regionClinica)}`, `Preexistencias: ${preex}`, `Qué busca: ${v(d.busca)}`,
-    `Lo conversado: ${v(d.conversado, "(sin conversación previa)")}`, `Motivo de derivación: ${v(d.motivo)}`, `Urgencia: ${urg}`].join("\n");
+    `Región / clínica: ${v(d.regionClinica)}`, `Preexistencias: ${preex}`, `Contacto preferido: ${v(d.contacto, "Sin definir")}`,
+    "", `🎯 Qué busca: ${v(d.busca)}`,
+    `💬 Lo conversado: ${v(d.conversado, "(sin conversación previa)")}`,
+    `➡️ Siguiente paso sugerido: ${v(d.siguientePaso, "Contactar y revisar el caso")}`,
+    `Motivo de derivación: ${v(d.motivo)}`,
+    ...(form ? ["", `📋 Formulario: ${form}`] : [])].join("\n");
 }
 
-module.exports = { SYSTEM, ROL, KB: KB_WSP, NUMEROS, parseAsignacion, formatDerivacion, fmtCL };
+module.exports = { SYSTEM, ROL, KB: KB_WSP, NUMEROS, parseAsignacion, formatDerivacion, fmtCL, AFILIABILIDAD, sinSaludMental };

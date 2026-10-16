@@ -66,6 +66,19 @@ const fails = []; const ok = (c, m) => { if (!c) fails.push(m); };
   await V.ejecutar({ getEstado: async () => null, setEstado: async () => {}, registrarEvento: async () => {}, listarConvs: async () => convs, verificarConexion: async () => ({ ok: true }), retomar: async (t) => { ret.push(t); return { tipo: "reabierta" }; } }, ahora);
   ok(ret.join(",") === "56914", "vigía: reintenta solo la apertura con < 3 fallas y > 3 h desde la última: " + ret);
 
+  // 6) resúmenes antiguos en cola: el vigía los rehace con el formato completo y conserva las notas
+  const memR = new Map([["56996198021", { telefono: "56996198021", lead: { nombre: "Juan Quiroga", leadId: "L-9", edad: "38", isapre: "Colmena" }, derivado: true, derivadoT: Date.now() - 3600000, avisoEntregado: false,
+    resumenDerivacion: "🔔 Derivación IAsapre\nLead: Juan Quiroga\nUrgencia: Media\n📝 16-10-2026, 10:00: Llamar en la tarde", historial: [{ role: "user", content: "quiero cambiarme", t: Date.now() - 4000000 }] }]]);
+  const bodies = [];
+  const depsR = { store: { get: async (k) => memR.get(k), set: async (k, v) => memR.set(k, v) }, claude: async (b) => { bodies.push(b); return { stop_reason: "tool_use", content: [{ type: "tool_use", id: "d", name: "derivar", input: { ...derivarIn, afiliabilidad: "Muy afiliable", motivoAfiliabilidad: "Sin preexistencias y quiere cambiarse", contacto: "tarde", siguientePaso: "cotizar", preexistencias: "No" } }] }; } };
+  ok(A.resumenAntiguo(memR.get("56996198021")), "detecta resumen antiguo en cola");
+  const hechos = [];
+  await V.ejecutar({ getEstado: async () => null, setEstado: async () => {}, registrarEvento: async () => {}, listarConvs: async () => [...memR.values()], verificarConexion: async () => ({ ok: true }), retomar: async () => ({}),
+    resumenAntiguo: A.resumenAntiguo, rehacerResumen: async (t) => { hechos.push(t); return A.rehacerResumen(t, depsR); } }, Date.now());
+  const cr = memR.get("56996198021");
+  ok(hechos.length === 1 && bodies[0].tool_choice.name === "derivar" && /formato antiguo/.test(JSON.stringify(bodies[0].messages)), "vigía pide el resumen completo forzando derivar");
+  ok(/^⭐⭐ ALERTA: MUY AFILIABLE/.test(cr.resumenDerivacion) && /📝 16-10-2026, 10:00: Llamar en la tarde/.test(cr.resumenDerivacion) && /Edad: 34|Edad: 38/.test(cr.resumenDerivacion) && cr.afiliabilidad === "Muy afiliable" && !A.resumenAntiguo(cr) && A.avisoPendiente(cr), "resumen rehecho: alerta, notas, formulario y sigue en cola");
+
   if (fails.length) { console.log("✘ Avisos en cola: " + fails.length + " fallas\n - " + fails.join("\n - ")); process.exit(1); }
   console.log("Avisos en cola OK: plantilla/cola/texto, notas en el resumen, entrega al escribir el especialista, #avisos, panel, vigía sin insistir");
 })().catch((e) => { console.log("✘ excepción: " + (e && e.stack)); process.exit(1); });

@@ -15,15 +15,19 @@ const TOOLS = [{
   name: "derivar", strict: true,
   description: "Deriva la conversación a un especialista humano de IAsapre. Úsala SOLO en los casos de la sección 3.1 (dato no verificable, pide humano/cotización/avanzar con el cambio, reclamo o tema legal, urgencia o angustia, persona molesta o conversación estancada). Al llamarla, en el mismo turno escribe a la persona el mensaje de la sección 3.2. El resumen se envía automáticamente al especialista.",
   input_schema: { type: "object", additionalProperties: false,
-    required: ["prevision", "edadCargas", "renta", "regionClinica", "preexistencias", "busca", "conversado", "motivo", "urgencia"],
+    required: ["afiliabilidad", "motivoAfiliabilidad", "prevision", "edadCargas", "renta", "regionClinica", "preexistencias", "contacto", "busca", "conversado", "siguientePaso", "motivo", "urgencia"],
     properties: {
-      prevision: { type: "string", description: "Isapre y plan actual, o Fonasa; 'No informado' si no se sabe" },
+      afiliabilidad: { type: "string", enum: ["Muy afiliable", "Afiliable", "Afiliable con restricción", "No afiliable", "Por confirmar"], description: "Criterio interno (sección 3.3). Muy afiliable = sin preexistencias o solo sin impacto/olvido oncológico, renta informada e interés en comparar o cambiarse" },
+      motivoAfiliabilidad: { type: "string", description: "Una frase con la razón de la clasificación (sin salud mental)" },
+      prevision: { type: "string", description: "Isapre, plan y costo actual si lo dijo, o Fonasa; 'No informado' si no se sabe" },
       edadCargas: { type: "string", description: "Edad del cotizante y cargas (edades)" },
       renta: { type: "string", description: "Renta imponible o rango" },
       regionClinica: { type: "string", description: "Región/comuna y clínica de preferencia" },
       preexistencias: { type: "string", description: "Sí/No y detalle breve. NUNCA incluir salud mental (no es preexistencia)" },
+      contacto: { type: "string", description: "Horario y canal preferido para que la contacten, y trato (usted/tú); 'Sin definir' si no lo dijo" },
       busca: { type: "string", description: "Qué busca la persona, 1–2 frases" },
-      conversado: { type: "string", description: "3–5 líneas con lo ya explicado y respondido" },
+      conversado: { type: "string", description: "Todo lo relevante: datos que dio (plan y precio actual, alzas, clínicas o médicos, tratamientos o cirugías programadas, embarazo, cargas, trabajo), lo explicado, la recomendación dada y dudas u objeciones pendientes" },
+      siguientePaso: { type: "string", description: "Qué debería hacer el especialista (p. ej. cotizar 3 planes en Clínica X cerca de su 7%, pedir cambio de plan interno)" },
       motivo: { type: "string", description: "Por qué no se pudo resolver" },
       urgencia: { type: "string", enum: ["Alta", "Media", "Baja"] } } } }];
 
@@ -109,13 +113,16 @@ function leerRespuesta(resp) {
 /** Deriva: resumen al especialista (WhatsApp + webhooks) y marca la conversación. */
 async function derivar(conv, input, deps, motivoExtra) {
   const L = conv.lead || {};
-  const d = formatDerivacion({ ...input, nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, motivo: input.motivo || motivoExtra });
+  const d = formatDerivacion({ ...input, nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, motivo: input.motivo || motivoExtra, formulario: L });
+  conv.afiliabilidad = input.afiliabilidad || "Por confirmar";
   conv.derivado = true; conv.derivadoEn = new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" }); conv.derivadoT = Date.now(); conv.resumenDerivacion = d;
-  let rs = null; try { rs = await deps.notificarEspecialista(d, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: (input.urgencia || "Media") }); } catch (e) { console.error("derivación", e && e.message); }
+  let rs = null; try { rs = await deps.notificarEspecialista(d, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: urgenciaAviso(input.urgencia || "Media", conv.afiliabilidad === "Muy afiliable") }); } catch (e) { console.error("derivación", e && e.message); }
   conv.avisoEntregado = entregadoComoTexto(rs); // si no llegó como texto, queda en cola hasta que el especialista escriba al asistente
   return d;
 }
 
+/** Urgencia para la plantilla y webhooks: con la alerta de muy afiliable a la vista. */
+const urgenciaAviso = (urg, muy) => (muy ? `${urg} · ⭐ MUY AFILIABLE` : urg);
 /** ¿El aviso al especialista llegó como texto (resumen completo)? La plantilla sola no cuenta: Meta puede frenarla (131049) y no trae el resumen. */
 const entregadoComoTexto = (rs) => { const w = Array.isArray(rs) ? rs[0] : rs; return !!(w && w.ok && w.via === "texto"); };
 const DIAS_AVISO = 3 * 24 * 3600 * 1000; // avisos en cola más viejos que esto ya no se reenvían solos (quedan en el panel)
@@ -140,13 +147,27 @@ async function avisarNota(conv, nota, deps) {
   let rs = null; try { rs = await deps.notificarEspecialista(aviso, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: "Media", soloTexto: true }); } catch (e) { console.error("nota especialista", e && e.message); }
   if (!entregadoComoTexto(rs)) conv.avisoEntregado = false;
 }
+const INSTR_RESUMEN = "Nota interna (no es un mensaje de la persona): esta conversación ya fue derivada al especialista, pero su resumen quedó con el formato antiguo e incompleto. Llama a la herramienta derivar con el resumen completo según la sección 3.3: todos los datos relevantes de la conversación y del formulario, la afiliabilidad con su razón, contacto preferido y el siguiente paso sugerido. No escribas nada a la persona.";
+/** Rehace con el formato completo (afiliabilidad, contacto, siguiente paso, formulario) el resumen de una derivada antigua. Conserva las notas 📝. */
+async function rehacerResumen(telefono, deps) {
+  const tel = digitos(telefono); const conv = tel ? await deps.store.get(tel) : null;
+  if (!conv || !conv.derivado) return false;
+  const body = cuerpoClaude({ ...conv, derivado: false }, INSTR_RESUMEN); body.tool_choice = { type: "tool", name: "derivar" };
+  const le = leerRespuesta(await deps.claude(body)); if (!le.derivar) return false;
+  const L = conv.lead || {}; const notas = String(conv.resumenDerivacion || "").split("\n").filter((l) => /^📝 /.test(l));
+  conv.resumenDerivacion = formatDerivacion({ ...le.derivar, nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, formulario: L }) + (notas.length ? "\n" + notas.join("\n") : "");
+  conv.afiliabilidad = le.derivar.afiliabilidad || "Por confirmar";
+  await deps.store.set(tel, conv); return true;
+}
+/** Derivada en cola cuyo resumen es del formato antiguo (sin afiliabilidad). */
+const resumenAntiguo = (c) => avisoPendiente(c) && !/Afiliabilidad:/.test(c.resumenDerivacion || "");
 /** Manda al especialista, como texto, los resúmenes de derivación en cola (solo funciona con su ventana de 24 h abierta: se llama cuando él escribe). */
 async function entregarAvisos(deps, esp) {
   const lista = deps.listarConvs ? await deps.listarConvs() : [];
   const pend = lista.filter((c) => digitos(c.telefono) !== esp && avisoPendiente(c)).sort((a, b) => tDerivacion(a) - tDerivacion(b)).slice(0, 25);
   let n = 0;
   for (const c of pend) {
-    const r = await deps.enviarTexto(esp, resumenDe(c) + "\nConversación: " + PANEL_URL + "?tel=" + digitos(c.telefono));
+    const res = resumenDe(c); const r = await deps.enviarTexto(esp, /Conversación: http/.test(res) ? res : res + "\nConversación: " + PANEL_URL + "?tel=" + digitos(c.telefono));
     if (!(r && r.ok)) continue;
     n++; const conv = await deps.store.get(c.telefono); if (conv) { conv.avisoEntregado = true; await deps.store.set(c.telefono, conv); }
   }
@@ -298,7 +319,7 @@ async function reenviarAviso(telefono, deps) {
   if (!conv.derivado) return { tipo: "no_derivada" };
   const L = conv.lead || {};
   const resumen = resumenDe(conv);
-  const rs = await deps.notificarEspecialista(resumen, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: (/Urgencia: (Alta|Media|Baja)/.exec(resumen) || [])[1] || "Media" });
+  const rs = await deps.notificarEspecialista(resumen, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: urgenciaAviso((/Urgencia: (Alta|Media|Baja)/.exec(resumen) || [])[1] || "Media", /MUY AFILIABLE/.test(resumen)) });
   const ok = Array.isArray(rs) ? !!(rs[0] && rs[0].ok) : !!(rs && rs.ok);
   conv.avisoEntregado = entregadoComoTexto(rs); if (!conv.derivadoT) conv.derivadoT = Date.now(); // vuelve a la cola si no llegó como texto
   await deps.store.set(tel, conv);
@@ -414,4 +435,4 @@ function crearHandler(depsOverride) {
   };
 }
 
-module.exports = { manejarEntrante, retomar, reenviarAviso, entregarAvisos, avisoPendiente, tDerivacion, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, TOOLS_DERIVADA, MSG_POST_DERIVACION, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
+module.exports = { manejarEntrante, retomar, reenviarAviso, entregarAvisos, rehacerResumen, resumenAntiguo, avisoPendiente, tDerivacion, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, TOOLS_DERIVADA, MSG_POST_DERIVACION, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };

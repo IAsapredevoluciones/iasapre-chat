@@ -41,6 +41,12 @@ async function ejecutar(deps, ahora) {
     if (r && (r.tipo === "retomada" || r.tipo === "reabierta")) salud.retomadas++;
     await deps.registrarEvento({ canal: "vigia", tipo: "retomada_auto", accion: r && r.tipo, enviado: r && r.enviado, de: c.telefono, error: r && r.error }).catch(() => {});
   }
+  // Resúmenes de derivación en cola con el formato antiguo: se rehacen (hasta 4 por vuelta, en paralelo) antes de entregárselos al especialista
+  if (deps.rehacerResumen && deps.resumenAntiguo) {
+    const viejos = convs.filter(deps.resumenAntiguo).slice(0, 4);
+    const rs = await Promise.allSettled(viejos.map((c) => deps.rehacerResumen(c.telefono)));
+    salud.resumenesRehechos = rs.filter((x) => x.status === "fulfilled" && x.value).length;
+  }
   // ¿Meta dejó de enviar? Última actividad de una persona vs. conversaciones activas en las últimas 24 h
   const ultUser = Math.max(0, ...convs.map((c) => { const u = [...(c.historial || [])].reverse().find((x) => x.role === "user"); return u ? u.t || 0 : 0; }));
   const ultBot = Math.max(0, ...convs.map((c) => { const u = [...(c.historial || [])].reverse().find((x) => x.role === "assistant"); return u ? u.t || 0 : 0; }));
@@ -53,7 +59,7 @@ function depsReales() {
   const st = require("./store.js"), wsp = require("./wsp_api.js"), A = require("./wsp_agent.js");
   st.conectar({ moderno: true });
   return { getEstado: st.getEstado, setEstado: st.setEstado, registrarEvento: st.registrarEvento, listarConvs: st.listarConvs, verificarConexion: wsp.verificarConexion,
-    retomar: (tel) => A.retomar(tel, A.depsReales({ moderno: true })) };
+    retomar: (tel) => A.retomar(tel, A.depsReales({ moderno: true })), rehacerResumen: (tel) => A.rehacerResumen(tel, A.depsReales({ moderno: true })), resumenAntiguo: A.resumenAntiguo };
 }
 
 module.exports = { ejecutar, depsReales, pendienteDe, aperturaFallida, MAX_APERTURAS };
