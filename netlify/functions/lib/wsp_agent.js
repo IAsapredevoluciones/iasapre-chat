@@ -110,9 +110,47 @@ function leerRespuesta(resp) {
 async function derivar(conv, input, deps, motivoExtra) {
   const L = conv.lead || {};
   const d = formatDerivacion({ ...input, nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, motivo: input.motivo || motivoExtra });
-  conv.derivado = true; conv.derivadoEn = new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" }); conv.resumenDerivacion = d;
-  try { await deps.notificarEspecialista(d, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: (input.urgencia || "Media") }); } catch (e) { console.error("derivación", e && e.message); }
+  conv.derivado = true; conv.derivadoEn = new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" }); conv.derivadoT = Date.now(); conv.resumenDerivacion = d;
+  let rs = null; try { rs = await deps.notificarEspecialista(d, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: (input.urgencia || "Media") }); } catch (e) { console.error("derivación", e && e.message); }
+  conv.avisoEntregado = entregadoComoTexto(rs); // si no llegó como texto, queda en cola hasta que el especialista escriba al asistente
   return d;
+}
+
+/** ¿El aviso al especialista llegó como texto (resumen completo)? La plantilla sola no cuenta: Meta puede frenarla (131049) y no trae el resumen. */
+const entregadoComoTexto = (rs) => { const w = Array.isArray(rs) ? rs[0] : rs; return !!(w && w.ok && w.via === "texto"); };
+const DIAS_AVISO = 3 * 24 * 3600 * 1000; // avisos en cola más viejos que esto ya no se reenvían solos (quedan en el panel)
+/** Hora de la derivación (derivadoT; en conversaciones antiguas se lee derivadoEn "15-10-2026, 19:03:18", hora de Chile). */
+function tDerivacion(c) {
+  if (c.derivadoT) return c.derivadoT;
+  const m = /(\d{1,2})-(\d{1,2})-(\d{4}),?\s+(\d{1,2}):(\d{2})/.exec(c.derivadoEn || "");
+  return m ? Date.parse(`${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}T${m[4].padStart(2, "0")}:${m[5]}:00-03:00`) || 0 : 0;
+}
+/** Derivada cuyo resumen aún no le llegó al especialista como texto. */
+function avisoPendiente(c, ahora) { return !!(c && c.derivado && c.avisoEntregado !== true && (ahora || Date.now()) - tDerivacion(c) < DIAS_AVISO); }
+/** Resumen de la derivación (guardado, o uno mínimo con link al panel para las derivadas antiguas). */
+function resumenDe(conv) {
+  const L = conv.lead || {};
+  return conv.resumenDerivacion || formatDerivacion({ nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, motivo: "derivada", conversado: "Ver la conversación completa en el panel." });
+}
+/** Dato nuevo de una derivada: se suma al resumen guardado y se intenta avisar como texto (sin plantilla: no se gasta el cupo de Meta en notas). */
+async function avisarNota(conv, nota, deps) {
+  const L = conv.lead || {};
+  const aviso = `📝 Actualización IAsapre\nLead: ${L.nombre || conv.nombrePerfil || "Sin nombre"} · ${fmtCL(conv.telefono) || conv.telefono}${L.leadId ? "\nPlataforma: https://app.iasapre.cl/?lead=" + L.leadId : ""}\n${guard(nota)}`;
+  conv.resumenDerivacion = resumenDe(conv) + `\n📝 ${new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" })}: ${guard(nota)}`;
+  let rs = null; try { rs = await deps.notificarEspecialista(aviso, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: "Media", soloTexto: true }); } catch (e) { console.error("nota especialista", e && e.message); }
+  if (!entregadoComoTexto(rs)) conv.avisoEntregado = false;
+}
+/** Manda al especialista, como texto, los resúmenes de derivación en cola (solo funciona con su ventana de 24 h abierta: se llama cuando él escribe). */
+async function entregarAvisos(deps, esp) {
+  const lista = deps.listarConvs ? await deps.listarConvs() : [];
+  const pend = lista.filter((c) => digitos(c.telefono) !== esp && avisoPendiente(c)).sort((a, b) => tDerivacion(a) - tDerivacion(b)).slice(0, 25);
+  let n = 0;
+  for (const c of pend) {
+    const r = await deps.enviarTexto(esp, resumenDe(c) + "\nConversación: " + PANEL_URL + "?tel=" + digitos(c.telefono));
+    if (!(r && r.ok)) continue;
+    n++; const conv = await deps.store.get(c.telefono); if (conv) { conv.avisoEntregado = true; await deps.store.set(c.telefono, conv); }
+  }
+  return { n, total: pend.length };
 }
 
 /** Punto de entrada por mensaje entrante. msg = {from, nombre, texto, messageId}. Devuelve un resumen de lo hecho (sin textos sensibles en logs). */
@@ -150,6 +188,16 @@ async function manejarEntrante(msg, deps) {
     if (deps.store.del) await deps.store.del(from);
     const rr = await deps.enviarTexto(from, MSG_REINICIO); return { tipo: "reinicio", enviado: !!(rr && rr.ok) };
   }
+  const esp = digitos(process.env.WSP_ESPECIALISTA || NUMEROS.especialista);
+  if (from === esp) { // su mensaje abre la ventana de 24 h: se anota y se le entregan los avisos que estaban en cola
+    if (deps.setEstado) { try { await deps.setEstado("especialista", { ultimo: Date.now() }); } catch (e) {} }
+    const pedido = /^#\s*avisos?$/i.test(texto.trim());
+    const e = deps.listarConvs ? await entregarAvisos(deps, esp) : { n: 0, total: 0 };
+    if (e.n || pedido) {
+      const rr = await deps.enviarTexto(from, e.n ? `📬 Te envié ${e.n} aviso(s) de derivación que estaban pendientes${e.total > e.n ? ` (${e.total - e.n} no salieron; revisa el panel)` : ""}. Para recibir cada derivación al momento con su resumen, escríbele cualquier cosa a este número una vez al día.` : "No hay avisos de derivación pendientes.");
+      return { tipo: "avisos_entregados", n: e.n, enviado: !!(rr && rr.ok) };
+    }
+  }
   const conv = (await deps.store.get(from)) || nuevaConv(from, msg.nombre);
   if (!conv.nombrePerfil && msg.nombre) conv.nombrePerfil = msg.nombre;
   if (msg.messageId && conv.historial.some((h) => h.id === msg.messageId)) return { tipo: "ignorado", motivo: "duplicado" }; // reintento de Meta
@@ -166,11 +214,7 @@ async function manejarEntrante(msg, deps) {
   }
   else if (pedido && !yaDerivada) { derivacion = await derivar(conv, pedido, deps); if (!salida) salida = MSG_DERIVACION; }
   if (!error && !rechazo && yaDerivada) {
-    if (nota) { // dato nuevo para el especialista (horario, dato del plan, etc.): se le reenvía sin volver a derivar
-      const L = conv.lead || {};
-      const aviso = `📝 Actualización IAsapre\nLead: ${L.nombre || conv.nombrePerfil || "Sin nombre"} · ${fmtCL(conv.telefono) || conv.telefono}${L.leadId ? "\nPlataforma: https://app.iasapre.cl/?lead=" + L.leadId : ""}\n${guard(nota)}`;
-      try { await deps.notificarEspecialista(aviso, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: "Media" }); } catch (e) { console.error("nota especialista", e && e.message); }
-    }
+    if (nota) await avisarNota(conv, nota, deps); // dato nuevo para el especialista (horario, dato del plan, etc.): sin volver a derivar
     if (!salida) salida = MSG_POST_DERIVACION;
   }
   salida = guard(salida) || MSG_ERROR;
@@ -216,7 +260,7 @@ async function retomar(telefono, deps, opciones) {
     const le = leerRespuesta(resp);
     if (le.rechazo) return { tipo: "rechazo" };
     if (conv.derivado) {
-      if (le.nota) { const L = conv.lead || {}; try { await deps.notificarEspecialista(`📝 Actualización IAsapre\nLead: ${L.nombre || conv.nombrePerfil || "Sin nombre"} · ${fmtCL(conv.telefono) || conv.telefono}\n${guard(le.nota)}`, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: "Media" }); } catch (e) {} }
+      if (le.nota) await avisarNota(conv, le.nota, deps);
       salida = le.texto || MSG_POST_DERIVACION;
     } else if (le.derivar) { await derivar(conv, le.derivar, deps); salida = le.texto || MSG_DERIVACION; } else salida = le.texto;
     salida = guard(salida) || MSG_ERROR;
@@ -253,17 +297,19 @@ async function reenviarAviso(telefono, deps) {
   if (!conv) return { tipo: "sin_conversacion" };
   if (!conv.derivado) return { tipo: "no_derivada" };
   const L = conv.lead || {};
-  const resumen = conv.resumenDerivacion || formatDerivacion({ nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, motivo: "derivada (aviso reenviado desde el panel)", conversado: "Ver la conversación completa en el panel." });
+  const resumen = resumenDe(conv);
   const rs = await deps.notificarEspecialista(resumen, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: (/Urgencia: (Alta|Media|Baja)/.exec(resumen) || [])[1] || "Media" });
   const ok = Array.isArray(rs) ? !!(rs[0] && rs[0].ok) : !!(rs && rs.ok);
-  return { tipo: "aviso_reenviado", enviado: ok };
+  conv.avisoEntregado = entregadoComoTexto(rs); if (!conv.derivadoT) conv.derivadoT = Date.now(); // vuelve a la cola si no llegó como texto
+  await deps.store.set(tel, conv);
+  return { tipo: "aviso_reenviado", enviado: ok, texto: conv.avisoEntregado };
 }
 
 /** deps reales (WhatsApp, Claude, Blobs) para usar fuera del webhook (panel). */
 function depsReales(event) {
   const wsp = require("./wsp_api.js"), store = require("./store.js"), stt = require("./stt.js"); const env = process.env; store.conectar(event);
   return { store: { get: store.getConv, set: store.setConv, del: store.delConv }, enviarTexto: wsp.enviarTexto, enviarPlantilla: wsp.enviarPlantilla, claude: claudeHTTP,
-    notificarEspecialista: crearNotificador(wsp, env), plantillaInicio: env.WSP_TEMPLATE_INICIO || "",
+    listarConvs: store.listarConvs, setEstado: store.setEstado, notificarEspecialista: crearNotificador(wsp, env), plantillaInicio: env.WSP_TEMPLATE_INICIO || "",
     transcribir: stt.configurado(env) ? async (mediaId) => { const m = await wsp.descargarMedia(mediaId); return stt.transcribir(m.buffer, m.mime, env); } : null };
 }
 
@@ -273,9 +319,12 @@ function depsReales(event) {
  *  Discord NUNCA recibe el detalle (datos de salud): solo nombre, teléfono, urgencia y link. */
 const PANEL_URL = process.env.PANEL_URL || "https://iasapre-chat.netlify.app/.netlify/functions/panel";
 const VENTANA_ESP = 23 * 3600 * 1000;
-/** Último mensaje que el especialista le escribió al asistente (abre la ventana de 24 h para texto libre). */
+/** Último mensaje que el especialista le escribió al asistente (abre la ventana de 24 h para texto libre): su conversación o la marca "especialista". */
 async function ultimoDelEspecialista(esp) {
-  try { const c = await require("./store.js").getConv(esp); const u = c && [...(c.historial || [])].reverse().find((h) => h.role === "user"); return u ? u.t || 0 : 0; } catch (e) { return 0; }
+  const st = require("./store.js"); let t = 0;
+  try { const c = await st.getConv(esp); const u = c && [...(c.historial || [])].reverse().find((h) => h.role === "user"); t = u ? u.t || 0 : 0; } catch (e) {}
+  try { const e = await st.getEstado("especialista"); if (e && e.ultimo > t) t = e.ultimo; } catch (e) {}
+  return t;
 }
 function crearNotificador(wsp, env, opciones) {
   env = env || process.env;
@@ -284,20 +333,22 @@ function crearNotificador(wsp, env, opciones) {
   async function porWhatsApp(esp, resumen, meta) {
     // Texto libre solo llega si el especialista escribió al asistente en las últimas 24 h. Meta acepta el envío igual y avisa
     // el rechazo después (131047), así que se decide ANTES: fuera de la ventana va directo la plantilla (con link al panel, donde está el resumen).
+    // El resultado lleva via: "texto" (llegó el resumen), "plantilla" (solo la alerta) o "cola" (nada salió; se entrega cuando él escriba).
     const t = await ultimoEsp(esp);
     const dentro = t && Date.now() - t < VENTANA_ESP;
-    if (!dentro && env.WSP_TEMPLATE_DERIVACION) {
+    if (!dentro) {
+      if (meta.soloTexto || !env.WSP_TEMPLATE_DERIVACION) return { ok: false, via: "cola" };
       const rp = await plantilla(esp, meta);
       if (!(rp && rp.ok)) console.error("derivación: plantilla al especialista rebotó", rp && rp.status, rp && rp.error);
-      return rp || { ok: false };
+      return { ...(rp || { ok: false }), via: "plantilla" };
     }
     let r = await wsp.enviarTexto(esp, resumen);
-    if (r && r.ok) return r;
+    if (r && r.ok) return { ...r, via: "texto" };
     console.error("derivación: texto al especialista rebotó", r && r.status, r && r.error);
-    if (!env.WSP_TEMPLATE_DERIVACION) return r || { ok: false };
+    if (!env.WSP_TEMPLATE_DERIVACION || meta.soloTexto) return { ...(r || { ok: false }), via: "cola" };
     r = await plantilla(esp, meta);
     if (!(r && r.ok)) console.error("derivación: plantilla al especialista rebotó", r && r.status, r && r.error);
-    return r || { ok: false };
+    return { ...(r || { ok: false }), via: "plantilla" };
   }
   return async function notificarEspecialista(resumen, meta) {
     const posts = [];
@@ -332,7 +383,7 @@ function crearHandler(depsOverride) {
     }
     const stt = require("./stt.js");
     const deps = Object.assign({ store: { get: store.getConv, set: store.setConv, del: store.delConv }, enviarTexto: wsp.enviarTexto, enviarPlantilla: wsp.enviarPlantilla, claude: claudeHTTP,
-      notificarEspecialista: crearNotificador(wsp, env), plantillaInicio: env.WSP_TEMPLATE_INICIO || "",
+      listarConvs: store.listarConvs, setEstado: store.setEstado, notificarEspecialista: crearNotificador(wsp, env), plantillaInicio: env.WSP_TEMPLATE_INICIO || "",
       transcribir: stt.configurado(env) ? async (mediaId) => { const m = await wsp.descargarMedia(mediaId); return stt.transcribir(m.buffer, m.mime, env); } : null }, depsOverride || {});
     const resultados = [];
     for (const m of wsp.parsearWebhook(body)) {
@@ -363,4 +414,4 @@ function crearHandler(depsOverride) {
   };
 }
 
-module.exports = { manejarEntrante, retomar, reenviarAviso, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, TOOLS_DERIVADA, MSG_POST_DERIVACION, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
+module.exports = { manejarEntrante, retomar, reenviarAviso, entregarAvisos, avisoPendiente, tDerivacion, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, TOOLS_DERIVADA, MSG_POST_DERIVACION, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
