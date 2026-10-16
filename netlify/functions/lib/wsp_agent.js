@@ -152,7 +152,7 @@ const INSTR_RESUMEN = "Nota interna (no es un mensaje de la persona): esta conve
 async function rehacerResumen(telefono, deps) {
   const tel = digitos(telefono); const conv = tel ? await deps.store.get(tel) : null;
   if (!conv || !conv.derivado) return false;
-  const body = cuerpoClaude({ ...conv, derivado: false }, INSTR_RESUMEN); body.tool_choice = { type: "tool", name: "derivar" };
+  const body = cuerpoClaude({ ...conv, derivado: false }, INSTR_RESUMEN); // tool_choice queda en auto: Opus 5.5 no acepta forzar herramienta (400)
   const le = leerRespuesta(await deps.claude(body)); if (!le.derivar) return false;
   const L = conv.lead || {}; const notas = String(conv.resumenDerivacion || "").split("\n").filter((l) => /^📝 /.test(l));
   conv.resumenDerivacion = formatDerivacion({ ...le.derivar, nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, formulario: L }) + (notas.length ? "\n" + notas.join("\n") : "");

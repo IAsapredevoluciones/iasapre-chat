@@ -76,7 +76,7 @@ const fails = []; const ok = (c, m) => { if (!c) fails.push(m); };
   await V.ejecutar({ getEstado: async () => null, setEstado: async () => {}, registrarEvento: async () => {}, listarConvs: async () => [...memR.values()], verificarConexion: async () => ({ ok: true }), retomar: async () => ({}),
     resumenAntiguo: A.resumenAntiguo, rehacerResumen: async (t) => { hechos.push(t); return A.rehacerResumen(t, depsR); } }, Date.now());
   const cr = memR.get("56996198021");
-  ok(hechos.length === 1 && bodies[0].tool_choice.name === "derivar" && /formato antiguo/.test(JSON.stringify(bodies[0].messages)), "vigía pide el resumen completo forzando derivar");
+  ok(hechos.length === 1 && bodies[0].tool_choice.type === "auto" && bodies[0].tools.some((t) => t.name === "derivar") && /formato antiguo/.test(JSON.stringify(bodies[0].messages)), "vigía pide el resumen completo forzando derivar");
   ok(/^⭐⭐ ALERTA: MUY AFILIABLE/.test(cr.resumenDerivacion) && /📝 16-10-2026, 10:00: Llamar en la tarde/.test(cr.resumenDerivacion) && /Edad: 34|Edad: 38/.test(cr.resumenDerivacion) && cr.afiliabilidad === "Muy afiliable" && !A.resumenAntiguo(cr) && A.avisoPendiente(cr), "resumen rehecho: alerta, notas, formulario y sigue en cola");
 
   // 7) vigía con la ventana del especialista abierta: entrega solo los resúmenes ya completos
