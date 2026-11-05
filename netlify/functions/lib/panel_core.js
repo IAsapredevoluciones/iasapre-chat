@@ -98,7 +98,10 @@ function crearHandler(depsOverride) {
     const env = (depsOverride && depsOverride.env) || process.env;
     if (event.httpMethod !== "GET" && event.httpMethod !== "POST") return { statusCode: 405, headers: HEAD, body: "Método no permitido" };
     if (!clave(env)) return { statusCode: 503, headers: HEAD, body: pagina("Panel", "<div class=box>Falta configurar <code>PANEL_SECRET</code> (o <code>ASIGNAR_SECRET</code>) en Netlify → Environment variables, y redeployar.</div>") };
-    if (!autorizado(event, env)) return noAutorizado();
+    // Lectura programada de la lista de derivadas (?derivadas=1): token propio de solo lectura, REVISION_TOKEN (distinto de ASIGNAR_SECRET)
+    const qq = event.queryStringParameters || {}, hh = (event.headers && (event.headers.authorization || event.headers.Authorization)) || "";
+    const porToken = event.httpMethod === "GET" && qq.derivadas && env.REVISION_TOKEN && env.REVISION_TOKEN.length >= 24 && igual(hh, "Bearer " + env.REVISION_TOKEN);
+    if (!porToken && !autorizado(event, env)) return noAutorizado();
     let store = depsOverride && depsOverride.store;
     if (!store) { const st = require("./store.js"); st.conectar(event); store = { listar: st.listarConvs, obtener: st.getConv, eventos: st.listarEventos, salud: () => st.getEstado("salud") }; }
     const q = event.queryStringParameters || {};
