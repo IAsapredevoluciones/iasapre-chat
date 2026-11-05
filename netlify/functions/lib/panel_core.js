@@ -147,6 +147,12 @@ function crearHandler(depsOverride) {
       }
       if (q.tel) { const c = await store.obtener(q.tel); return { statusCode: c ? 200 : 404, headers: HEAD, body: c ? vistaDetalle(c) : pagina("No encontrada", "<div class=box>No hay conversación con ese número. <a href='?'>Volver</a></div>") }; }
       if (q.asignar) return { statusCode: 200, headers: HEAD, body: vistaAsignar() };
+      if (q.derivadas) { // JSON para la revisión programada (reasignar en app.iasapre.cl): sin resúmenes ni datos de salud
+        const A = require("./wsp_agent.js"); const desde = Date.parse(q.desde || "") || 0;
+        const lista = (await store.listar()).filter((c) => c.derivado).map((c) => ({ nombre: (c.lead && c.lead.nombre) || c.nombrePerfil || "", telefono: fmtCL(c.telefono) || c.telefono, leadId: (c.lead && c.lead.leadId) || null, derivadoEn: c.derivadoEn || null, derivadoT: A.tDerivacion(c) || null, afiliabilidad: c.afiliabilidad || null }))
+          .filter((x) => !desde || (x.derivadoT || 0) >= desde).sort((a, b) => (b.derivadoT || 0) - (a.derivadoT || 0));
+        return { statusCode: 200, headers: { ...HEAD, "Content-Type": "application/json; charset=utf-8" }, body: JSON.stringify({ total: lista.length, derivadas: lista }) };
+      }
       if (q.eventos) return { statusCode: 200, headers: HEAD, body: vistaEventos(await store.eventos(Math.min(Number(q.n) || 150, 500))) };
       return { statusCode: 200, headers: HEAD, body: vistaLista(await store.listar(), "", store.salud ? await store.salud().catch(() => null) : null) };
     } catch (e) { console.error("panel", e && e.message); return { statusCode: 500, headers: HEAD, body: pagina("Error", "<div class=box>Error al leer el almacén.</div>") }; }
