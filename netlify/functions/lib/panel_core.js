@@ -26,7 +26,7 @@ function autorizado(event, env) {
 
 /** Conversación con la persona esperando respuesta (último turno suyo, o último envío del bot fallido) y no derivada. */
 const avisoPendiente = (c) => require("./wsp_agent.js").avisoPendiente(c);
-const AVISO_COLA = "Para recibirlos, escríbele cualquier mensaje al asistente (+56 9 5373 0030) desde el WhatsApp del especialista: le llegan todos los resúmenes en cola al instante (o escribe #avisos).";
+const AVISO_COLA = "Para recibirlos, cada especialista (+56 9 5833 2604 y +56 9 8538 0357) le escribe cualquier mensaje al asistente (+56 9 5373 0030) desde su WhatsApp: le llegan al instante los resúmenes que tenía en cola (o escribe #avisos).";
 const pendiente = (c) => { const h = c.historial || [], u = h[h.length - 1]; return !!(u && (u.role === "user" || (!c.derivado && u.enviado === false))); };
 
 /** Aviso de salud del canal (lo escribe el vigía cada 10 min). */
@@ -43,7 +43,8 @@ function vistaLista(convs, msg, salud) {
   const filas = convs.map((c) => { const L = c.lead || {}; const ult = c.historial && c.historial.length ? c.historial[c.historial.length - 1] : null; const pend = pendiente(c);
     return `<tr${pend ? ' style="background:#fff7e6"' : ""}><td><a href="?tel=${esc(c.telefono)}"><b>${esc(L.nombre || c.nombrePerfil || "Sin nombre")}</b></a><br><small>${esc(fmtCL(c.telefono) || c.telefono)}</small></td><td>${c.derivado ? '<span class="b der">derivada</span>' + (c.afiliabilidad === "Muy afiliable" ? ' <span class="b ok">⭐ muy afiliable</span>' : "") + (avisoPendiente(c) ? ' <span class="b no">aviso en cola</span>' : "") : pend ? '<span class="b no">sin responder</span> ' + btnRetomar(c) : '<span class="b">en asesoría</span>'}${L.leadId ? ' <span class="b">lead</span>' : ""}${c.asignaciones ? ` <small>${c.asignaciones} asig.</small>` : ""}</td><td>${(c.historial || []).length} turnos<br><small>${esc(hora(c.actualizado || c.creado))}</small></td><td><small>${esc(ult ? (ult.role === "assistant" ? "Bot: " : "Persona: ") + String(ult.content || "").slice(0, 90) : "")}</small></td></tr>`; }).join("");
   const der = convs.filter((c) => c.derivado).length, pend = convs.filter(pendiente).length, cola = convs.filter(avisoPendiente).length;
-  const antiguas = convs.filter((c) => c.derivado && c.avisoEntregado !== false && !/Afiliabilidad:/.test(c.resumenDerivacion || "") && Date.now() - require("./wsp_agent.js").tDerivacion(c) < 3 * 24 * 3600 * 1000).length;
+  const AG = require("./wsp_agent.js");
+  const antiguas = convs.filter((c) => c.derivado && AG.especialistas().some((e) => AG.entregadoA(c, e)) && !/Afiliabilidad:/.test(c.resumenDerivacion || "") && Date.now() - AG.tDerivacion(c) < 3 * 24 * 3600 * 1000).length;
   const bannerRehacer = antiguas ? `<div class=box>${antiguas} derivación(es) recientes tienen el resumen antiguo (sin afiliabilidad ni siguiente paso). <form method="post" action="?" style="display:inline"><input type="hidden" name="accion" value="rehacer"><button class="b" style="cursor:pointer;border:0;background:#2f5fd8;color:#fff">Rehacer resúmenes y reenviarlos</button></form></div>` : "";
   const bannerCola = cola ? `<div class=box style="border:2px solid #e96f9a;background:#fff0f4"><b>📬 ${cola} aviso(s) de derivación sin llegar al especialista.</b> ${esc(AVISO_COLA)}</div>` : "";
   return pagina("Conversaciones", `${bannerSalud(salud)}${bannerCola}${bannerRehacer}${msg ? `<div class=box>${esc(msg)}</div>` : ""}<div class=box><b>${convs.length}</b> conversaciones · <b>${der}</b> derivadas · <b>${pend}</b> sin responder · ${convs.filter((c) => c.lead && c.lead.leadId).length} con lead de la plataforma. <small>Se guardan los últimos 80 turnos por persona. "Retomar" responde al mensaje pendiente (o reabre con la plantilla si pasaron más de 24 h). Para repetir una prueba, el especialista escribe <code>#reiniciar</code> al asistente.</small></div><table><tr><th>Persona</th><th>Estado</th><th>Actividad</th><th>Último mensaje</th></tr>${filas || '<tr><td colspan=4>Aún no hay conversaciones.</td></tr>'}</table>`);
@@ -134,7 +135,7 @@ function crearHandler(depsOverride) {
         if (accion === "aviso" && q.tel) {
           const fn = (depsOverride && depsOverride.reenviarAviso) || (async (tel) => { const A = require("./wsp_agent.js"); return A.reenviarAviso(tel, A.depsReales(event)); });
           const r = await fn(q.tel); const c = await store.obtener(q.tel);
-          const txt = r.tipo === "aviso_reenviado" ? (r.texto ? "Resumen de derivación enviado al WhatsApp del especialista." : (r.enviado ? "Se envió la alerta con plantilla, pero Meta puede frenarla. " : "") + "El resumen quedó en cola. " + AVISO_COLA) : r.tipo === "no_derivada" ? "Esta conversación no está derivada." : r.tipo;
+          const txt = r.tipo === "aviso_reenviado" ? (r.texto ? "Resumen de derivación enviado al WhatsApp de los especialistas." : (r.enviado ? "Se envió el aviso (texto o plantilla; Meta puede frenar la plantilla). " : "") + "El resumen quedó en cola" + (r.pendientes && r.pendientes.length ? " para " + r.pendientes.join(" y ") : "") + ". " + AVISO_COLA) : r.tipo === "no_derivada" ? "Esta conversación no está derivada." : r.tipo;
           return { statusCode: 200, headers: HEAD, body: c ? vistaDetalle(c, txt) : vistaLista(await store.listar(), txt) };
         }
         if (!["retomar", "reenviar", "recuperar"].includes(accion) || !q.tel) return { statusCode: 400, headers: HEAD, body: pagina("Acción", "<div class=box>Acción no reconocida. <a href='?'>Volver</a></div>") };

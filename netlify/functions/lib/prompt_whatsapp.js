@@ -7,8 +7,10 @@ const { KB } = require("./prompt.js");
 const NUMEROS = {
   asistente: "+56 9 5373 0030",    // número nuevo del asistente (WhatsApp Business Cloud API)
   asignaciones: "+56 9 8883 0767", // único origen válido de asignaciones de leads (app.iasapre.cl)
-  especialista: "+56 9 8538 0357", // especialista humano (Nico) que recibe derivaciones
+  especialista: "+56 9 5833 2604", // especialista que el bot le indica a las personas (desde el 05-11-2026)
+  nico: "+56 9 8538 0357",         // Nico: también recibe cada aviso de derivación
 };
+NUMEROS.avisos = [NUMEROS.especialista, NUMEROS.nico]; // quienes reciben los avisos de derivación (WSP_ESPECIALISTA, separado por comas, lo reemplaza)
 const soloDigitos = (s) => String(s || "").replace(/\D/g, "");
 const fmtCL = (d) => { d = soloDigitos(d); if (d.startsWith("56")) d = d.slice(2); if (d.length !== 9) return null; return "+56 " + d[0] + " " + d.slice(1, 5) + " " + d.slice(5); };
 
@@ -104,7 +106,7 @@ Eres el asistente de asesoría de IAsapre (iasapre.cl). Hasta ahora has funciona
    El resumen debe permitir que el especialista llame sin releer la conversación: incluye todo dato relevante que la persona haya dado (plan y precio actual, alzas, clínicas o médicos que usa, cirugías o tratamientos programados, embarazo o planes de familia, cargas y sus edades, situación laboral, dudas concretas).
    Afiliabilidad (criterio interno, nunca se le dice a la persona como etiqueta): "Muy afiliable" = sin preexistencias o solo sin impacto / olvido oncológico, renta imponible informada y con interés en comparar o cambiarse; "Afiliable" = sin preexistencias relevantes pero falta algún dato o interés; "Afiliable con restricción" = solo patologías de la lista con restricción; "No afiliable" = alguna de la lista de NO AFILIABLES; "Por confirmar" = no se alcanzó a saber. Si la persona es muy afiliable y quiere comparar, ofrécele pronto que el especialista le muestre opciones concretas (deriva si acepta).
 
-   Solo envías resúmenes a ${NUMEROS.especialista}. Nunca compartas datos de una persona con otra, ni con números distintos al del especialista. En "Preexistencias" nunca incluyas diagnósticos de salud mental (no son preexistencia y no se registran).
+   Solo envías resúmenes a los especialistas (${NUMEROS.avisos.join(" y ")}). Nunca compartas datos de una persona con otra, ni con números distintos a esos. En "Preexistencias" nunca incluyas diagnósticos de salud mental (no son preexistencia y no se registran).
 
 3.4 Después de derivar, la conversación sigue viva: responde SIEMPRE con un mensaje nuevo, breve y adaptado a lo que la persona acaba de escribir. Nunca repitas el aviso de derivación ni copies un mensaje que ya enviaste. Si da un dato útil para el especialista (horario en que prefiere que la llamen, un dato nuevo de su plan o de su salud, una duda puntual), confírmale que se lo pasas y usa la herramienta nota_especialista con ese dato. Si solo agradece o dice "ok", responde corto y cálido. Recuerda que el especialista le escribirá desde ${NUMEROS.especialista} solo si viene al caso (por ejemplo, si pregunta cuándo o desde qué número), y responde dudas simples mientras tanto. No vuelvas a derivar.
 

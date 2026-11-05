@@ -16,7 +16,8 @@
 |---|---|---|
 | Asistente (este canal) | **+56 9 5373 0030** | número nuevo registrado en la Cloud API; recibe asignaciones y conversa con las personas |
 | Plataforma (app.iasapre.cl) | +56 9 8883 0767 | **único** origen válido de asignaciones de leads |
-| Especialista (Nico) | +56 9 8538 0357 | recibe las derivaciones ("🔔 Derivación IAsapre") |
+| Especialista (desde 05-11-2026) | +56 9 5833 2604 | es el número que el bot le da a las personas; recibe las derivaciones ("🔔 Derivación IAsapre") |
+| Nico | +56 9 8538 0357 | también recibe cada derivación |
 
 ## Cómo funciona (código)
 ```
@@ -39,7 +40,7 @@ Meta Cloud API ──POST──▶ netlify/functions/whatsapp.js  (GET = verific
 - **Rechazo del modelo** (`stop_reason: refusal`): se deriva y se responde con un mensaje seguro. **Error de API**: mensaje de reintento; el historial se guarda igual.
 - **Notas de voz**: se descargan de la Cloud API (`descargarMedia`), se transcriben con `lib/stt.js` (OpenAI `gpt-4o-mini-transcribe` con `OPENAI_API_KEY`, o Deepgram `nova-3` con `DEEPGRAM_API_KEY`; `STT_PROVIDER`/`STT_MODEL` opcionales) y la transcripción entra como texto de la persona (marcada `audio: true` en el historial). Sin STT configurado o si falla, el bot pide el mensaje por escrito. El audio no se guarda ni se registra.
 - **Imágenes, documentos y stickers**: aviso de que solo lee texto o audios. Reacciones y mensajes propios: silencio.
-- **`#reiniciar`** enviado desde el número del especialista (+56 9 8538 0357) borra su propia conversación guardada, para repetir pruebas desde cero (también `{reiniciar}` en el endpoint `asignar`).
+- **`#reiniciar`** enviado desde el número de un especialista (+56 9 5833 2604 o +56 9 8538 0357) borra su propia conversación guardada, para repetir pruebas desde cero (también `{reiniciar}` en el endpoint `asignar`).
 - **Logs**: solo tipo de evento, acción y si se envió; nunca teléfonos ni textos.
 - Tests: `tests/whatsapp.js` (prompt y helpers) y `tests/wsp_agent.js` (agente completo con Claude, WhatsApp y almacén simulados; firma del webhook; avisos). `npm run test:quick` los corre.
 
@@ -76,7 +77,7 @@ Panel de solo lectura: **https://iasapre-chat.netlify.app/.netlify/functions/pan
 - Suscripción de la WABA a la app: `GET /{WABA_ID}/subscribed_apps` con el Explorador de la API Graph debe listar la app.
 
 - **Funciones en formato moderno** (`export default async (req)` + `lib/moderno.js`): es lo que da a Netlify Blobs consistencia fuerte. En formato clásico las lecturas eran eventuales y, con mensajes seguidos, el bot perdía turnos y repreguntaba (isapre, cargas). Además `store.setConv` fusiona historiales (dos invocaciones en paralelo no se pisan) y el agente ignora reintentos de Meta con el mismo `messageId`.
-- **Aviso al especialista**: primero el resumen completo como texto (llega si +56 9 8538 0357 le escribió al asistente en las últimas 24 h; mientras la plantilla no esté aprobada, basta con que Nico le mande "ok" al asistente una vez al día); si rebota, la plantilla `derivacion_iasapre`. Los estados "failed" de Meta quedan en el log (código y título).
+- **Aviso al especialista**: primero el resumen completo como texto (a cada especialista por separado: le llega si ese número le escribió al asistente en las últimas 24 h; si no, queda en su cola; mientras la plantilla no esté aprobada, basta con que Nico le mande "ok" al asistente una vez al día); si rebota, la plantilla `derivacion_iasapre`. Los estados "failed" de Meta quedan en el log (código y título).
 
 **Límites a tener presentes**: tiempo máximo de una función Netlify (10 s por defecto; el agente responde en pocos segundos con effort `low`, pero si hay timeouts subir el plan o mover a función background); el número de pruebas de Meta tiene cuota de 250 conversaciones/día hasta verificar el negocio; Blobs está disponible con functions en cualquier plan.
 
@@ -88,7 +89,7 @@ Panel de solo lectura: **https://iasapre-chat.netlify.app/.netlify/functions/pan
 5. **Identidad**: además de reconocer que es un sistema, "nunca te presentes como Nico ni como una persona".
 6. **Privacidad en la derivación**: la salud mental no viaja en el resumen al especialista (Ley 21.331 + regla 4 de `CLAUDE.md`); Discord solo recibe nombre, teléfono, urgencia y link.
 7. La palabra **"cacho"** se eliminó también del motor web (`nico_bot.js`), para que la voz sea una sola.
-8. La derivación la ejecuta el código (herramienta `derivar`), no el modelo escribiendo a otro número: así el resumen solo puede ir a +56 9 8538 0357 y a los webhooks configurados.
+8. La derivación la ejecuta el código (herramienta `derivar`), no el modelo escribiendo a otro número: así el resumen solo puede ir a los especialistas (+56 9 5833 2604 y +56 9 8538 0357) y a los webhooks configurados.
 
 ## Reglas que este canal comparte con el resto del proyecto
 Salud mental nunca es preexistencia ni restricción · cero cifras sin fuente (`docs/FUENTES_VERIFICADAS.md`) · nada de datos de salud fuera del CRM/especialista · identidad "asistente de IAsapre" · sin "cacho" ni "no rentable" · afiliables → comparar; no afiliables → resolver sin empujar al cambio.

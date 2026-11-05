@@ -127,21 +127,21 @@ const txt = (t) => ({ stop_reason: "end_turn", content: [{ type: "text", text: t
   const resumen = W.formatDerivacion({ nombre: "Ana", telefono: "56990000000", leadId: "L-1", preexistencias: "diabetes", motivo: "x" });
   await notificar(resumen, { nombre: "Ana", telefono: "56990000000", leadId: "L-1", urgencia: "Alta" });
   global.fetch = fetchReal;
-  const disc = posts.find((p) => /discord/.test(p.u)), crm = posts.find((p) => /crm/.test(p.u)), wa = posts.find((p) => /^wsp:/.test(p.u));
+  const disc = posts.find((p) => /discord/.test(p.u)), crm = posts.find((p) => /crm/.test(p.u)), wa = posts.find((p) => /^wsp:/.test(p.u)), was = posts.filter((p) => /^wsp:/.test(p.u)).map((p) => p.u);
   ok(disc && !/diabetes/.test(JSON.stringify(disc.body)) && /Ana/.test(disc.body.content) && /L-1/.test(disc.body.content), "Discord: sin datos de salud, con nombre, teléfono y link");
   ok(crm && crm.body.stage === "derivacion_wsp" && /diabetes/.test(crm.body.resumen), "CRM recibe el resumen completo");
-  ok(wa && wa.u === "wsp:56985380357" && /🔔 Derivación IAsapre/.test(wa.body), "WhatsApp al especialista +56 9 8538 0357");
+  ok(wa && /🔔 Derivación IAsapre/.test(wa.body) && was.join(",") === "wsp:56958332604,wsp:56985380357", "WhatsApp a los dos especialistas (+56 9 5833 2604 y +56 9 8538 0357): " + was);
   // 11b) si el texto rebota (ventana de 24 h cerrada) se usa la plantilla; si el texto llega, no se manda plantilla
   const pl = []; const wspMock2 = { enviarTexto: async () => ({ ok: false, status: 400, error: "Re-engagement message" }), enviarPlantilla: async (to, nombre, params) => { pl.push({ to, nombre, params }); return { ok: true }; } };
   const errReal = console.error; console.error = () => {};
   const rs = await A.crearNotificador(wspMock2, { WSP_TEMPLATE_DERIVACION: "derivacion_iasapre" }, { ultimoEsp: async () => Date.now() })(resumen, { nombre: "Ana", telefono: "56990000000", leadId: "L-1", urgencia: "Alta" });
   console.error = errReal;
-  ok(rs[0] && rs[0].ok && pl.length === 1 && pl[0].to === "56985380357" && pl[0].nombre === "derivacion_iasapre" && pl[0].params.join("|") === "Ana|+56 9 9000 0000|Alta|https://iasapre-chat.netlify.app/.netlify/functions/panel?tel=56990000000", "texto rebotado → plantilla con nombre, teléfono, urgencia y link al panel");
+  ok(rs[0] && rs[0].ok && rs[0].para === "56958332604" && pl.length === 2 && pl[1].to === "56985380357" && pl[0].nombre === "derivacion_iasapre" && pl[0].params.join("|") === "Ana|+56 9 9000 0000|Alta|https://iasapre-chat.netlify.app/.netlify/functions/panel?tel=56990000000", "texto rebotado → plantilla con nombre, teléfono, urgencia y link al panel");
   const pl2 = []; await A.crearNotificador({ enviarTexto: async () => ({ ok: true }), enviarPlantilla: async (...a) => { pl2.push(a); return { ok: true }; } }, { WSP_TEMPLATE_DERIVACION: "derivacion_iasapre" }, { ultimoEsp: async () => Date.now() })(resumen, { nombre: "Ana", telefono: "56990000000" });
   ok(pl2.length === 0, "dentro de 24 h y texto entregado → sin plantilla");
   // fuera de la ventana de 24 h → directo la plantilla, sin intentar texto (Meta lo rechazaría después con 131047)
   const tx3 = [], pl3 = []; await A.crearNotificador({ enviarTexto: async (...a) => { tx3.push(a); return { ok: true }; }, enviarPlantilla: async (...a) => { pl3.push(a); return { ok: true }; } }, { WSP_TEMPLATE_DERIVACION: "derivacion_iasapre" }, { ultimoEsp: async () => Date.now() - 30 * 3600000 })(resumen, { nombre: "Adriana", telefono: "56979582272", urgencia: "Media" });
-  ok(tx3.length === 0 && pl3.length === 1 && pl3[0][2][3] === "https://iasapre-chat.netlify.app/.netlify/functions/panel?tel=56979582272", "fuera de 24 h → plantilla directa con link al panel");
+  ok(tx3.length === 0 && pl3.length === 2 && pl3[0][2][3] === "https://iasapre-chat.netlify.app/.netlify/functions/panel?tel=56979582272", "fuera de 24 h → plantilla directa con link al panel");
   const ef = api.estadosFallidos({ entry: [{ changes: [{ value: { statuses: [{ id: "x", status: "failed", recipient_id: "569", errors: [{ code: 131047, title: "Re-engagement message" }] }, { id: "y", status: "delivered" }] } }] }] });
   ok(ef.length === 1 && ef[0].code === 131047 && /Re-engagement/.test(ef[0].title) && !JSON.stringify(ef).includes("569"), "estadosFallidos: solo código y título");
   console.log(fails.length ? "FALLAS:\n - " + fails.join("\n - ") : "WhatsApp agente OK: asignación, reasignación, origen inválido, guard, derivación sin salud mental, refusal, errores, webhook (firma/verificación/parseo), avisos");

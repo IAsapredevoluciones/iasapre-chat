@@ -11,7 +11,7 @@ const fails = []; const ok = (c, m) => { if (!c) fails.push(m); };
   const rn = await fuera("📝 nota", { nombre: "Ana", telefono: "56990000000", soloTexto: true });
   ok(rn[0].via === "cola" && !rn[0].ok && tx.length === 0 && pl.length === 0, "nota fuera de 24 h → en cola, sin texto ni plantilla");
   const rd = await fuera("🔔 Derivación", { nombre: "Ana", telefono: "56990000000" });
-  ok(rd[0].via === "plantilla" && pl.length === 1 && tx.length === 0, "derivación fuera de 24 h → plantilla (alerta), resumen en cola");
+  ok(rd[0].via === "plantilla" && rd[1].via === "plantilla" && pl.length === 2 && tx.length === 0, "derivación fuera de 24 h → plantilla a cada especialista, resumen en cola");
   const rt = await A.crearNotificador(wspM, {}, { ultimoEsp: async () => Date.now() - 3600000 })("🔔 Derivación", { nombre: "Ana", telefono: "56990000000" });
   ok(rt[0].via === "texto" && rt[0].ok, "dentro de 24 h → texto");
 
@@ -26,7 +26,7 @@ const fails = []; const ok = (c, m) => { if (!c) fails.push(m); };
   cola = [{ stop_reason: "tool_use", content: [{ type: "tool_use", id: "t", name: "derivar", input: derivarIn }] }];
   await A.manejarEntrante({ from: "56979582272", nombre: "Adriana", texto: "quiero cotizar", messageId: "a1" }, deps);
   let c = mem.get("56979582272");
-  ok(c.derivado && c.avisoEntregado === false && c.derivadoT && A.avisoPendiente(c), "derivada con aviso solo por plantilla → en cola");
+  ok(c.derivado && c.avisosEntregados["56958332604"] === false && c.avisosEntregados[ESP] === false && c.derivadoT && A.avisoPendiente(c), "derivada con aviso solo por plantilla → en cola para los dos");
   // nota posterior que tampoco llega → se suma al resumen
   viaAviso = "cola"; cola = [{ stop_reason: "tool_use", content: [{ type: "text", text: "Le aviso." }, { type: "tool_use", id: "n", name: "nota_especialista", input: { nota: "Prefiere llamada después de las 18:00" } }] }];
   await A.manejarEntrante({ from: "56979582272", nombre: "Adriana", texto: "llámenme después de las 18", messageId: "a2" }, deps);
@@ -46,8 +46,10 @@ const fails = []; const ok = (c, m) => { if (!c) fails.push(m); };
   const alEsp = enviados.filter((e) => e.to === ESP);
   ok(r.tipo === "avisos_entregados" && r.n === 2 && alEsp.length === 3, "especialista escribe → 2 resúmenes + confirmación: " + JSON.stringify(r));
   ok(/Juan Quiroga/.test(alEsp[0].body) && /Adriana/.test(alEsp[1].body) && /diabetes/.test(alEsp[1].body) && /18:00/.test(alEsp[1].body) && /panel\?tel=56979582272/.test(alEsp[1].body), "en orden, con resumen completo, notas y link");
-  ok(/📬 Te envié 2/.test(alEsp[2].body) && cuerpos.length === nC && estado.especialista && estado.especialista.ultimo, "confirmación, sin Claude, y se anota la ventana abierta");
-  ok(!A.avisoPendiente(mem.get("56979582272")) && !A.avisoPendiente(mem.get("56996198021")), "entregados: salen de la cola");
+  ok(/📬 Te envié 2/.test(alEsp[2].body) && cuerpos.length === nC && estado["especialista_" + ESP] && estado["especialista_" + ESP].ultimo, "confirmación, sin Claude, y se anota la ventana abierta de ese especialista");
+  ok(!A.avisoPendiente(mem.get("56979582272"), null, ESP) && !A.avisoPendiente(mem.get("56996198021"), null, ESP) && A.avisoPendiente(mem.get("56979582272"), null, "56958332604"), "entregados a Nico: salen de su cola; siguen en la del otro especialista");
+  enviados.length = 0; const rN = await A.manejarEntrante({ from: "56958332604", nombre: "Especialista", texto: "hola", messageId: "n1" }, deps);
+  ok(rN.tipo === "avisos_entregados" && rN.n === 2 && enviados.filter((e) => e.to === "56958332604").length === 3 && !A.avisoPendiente(mem.get("56979582272")), "el otro especialista escribe → recibe los suyos y la cola queda vacía");
   // sin cola: conversación normal; #avisos responde que no hay
   enviados.length = 0; await A.manejarEntrante({ from: ESP, nombre: "Nico", texto: "hola de nuevo", messageId: "e2" }, deps);
   ok(cuerpos.length === nC + 1, "sin avisos pendientes el especialista conversa normal (pruebas)");
@@ -89,7 +91,7 @@ const fails = []; const ok = (c, m) => { if (!c) fails.push(m); };
   // 8) panel: rehacer marca las derivadas recientes con resumen antiguo
   const mem8 = new Map([["1", { telefono: "1", derivado: true, derivadoT: Date.now() - 3600000, avisoEntregado: true, resumenDerivacion: "🔔 Derivación IAsapre" }], ["2", { telefono: "2", derivado: true, derivadoT: Date.now() - 3600000, avisoEntregado: true, resumenDerivacion: "Afiliabilidad: Afiliable" }]]);
   const n8 = await A.marcarParaRehacer({ listarConvs: async () => [...mem8.values()], store: { get: async (k) => mem8.get(k), set: async (k, v) => mem8.set(k, v) } });
-  ok(n8 === 1 && mem8.get("1").avisoEntregado === false && mem8.get("2").avisoEntregado === true && A.resumenAntiguo(mem8.get("1")), "rehacer: solo las de resumen antiguo vuelven a la cola");
+  ok(n8 === 1 && mem8.get("1").avisosEntregados[ESP] === false && mem8.get("1").avisosEntregados["56958332604"] === false && !mem8.get("2").avisosEntregados && A.resumenAntiguo(mem8.get("1")), "rehacer: solo las de resumen antiguo vuelven a la cola de ambos");
   ok(/Rehacer resúmenes y reenviarlos/.test(P.vistaLista([mem8.get("2"), { telefono: "3", derivado: true, derivadoT: Date.now(), avisoEntregado: true, resumenDerivacion: "x" }], "", null)), "panel ofrece rehacer resúmenes antiguos");
 
   if (fails.length) { console.log("✘ Avisos en cola: " + fails.length + " fallas\n - " + fails.join("\n - ")); process.exit(1); }

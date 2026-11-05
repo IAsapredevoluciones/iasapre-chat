@@ -49,7 +49,10 @@ async function ejecutar(deps, ahora) {
   }
   // Si el especialista le escribió al asistente en las últimas 23 h, los avisos en cola (ya completos) se le mandan como texto sin esperar
   if (deps.ventanaEspecialista && deps.entregarAvisos) {
-    try { if (await deps.ventanaEspecialista(ahora)) { const e = await deps.entregarAvisos(); salud.avisosEntregados = e.n; if (e.n) await deps.registrarEvento({ canal: "vigia", tipo: "avisos_entregados", accion: String(e.n) }).catch(() => {}); } } catch (e) { console.error("vigia avisos", e && e.message); }
+    salud.avisosEntregados = 0;
+    for (const esp of deps.especialistas ? deps.especialistas() : [null]) { // cada especialista tiene su propia ventana y su propia cola
+      try { if (await deps.ventanaEspecialista(ahora, esp)) { const e = await deps.entregarAvisos(esp); salud.avisosEntregados += e.n; if (e.n) await deps.registrarEvento({ canal: "vigia", tipo: "avisos_entregados", accion: String(e.n), de: esp || undefined }).catch(() => {}); } } catch (e) { console.error("vigia avisos", e && e.message); }
+    }
   }
   // ¿Meta dejó de enviar? Última actividad de una persona vs. conversaciones activas en las últimas 24 h
   const ultUser = Math.max(0, ...convs.map((c) => { const u = [...(c.historial || [])].reverse().find((x) => x.role === "user"); return u ? u.t || 0 : 0; }));
@@ -59,14 +62,13 @@ async function ejecutar(deps, ahora) {
   return salud;
 }
 
-const ESP = () => String(process.env.WSP_ESPECIALISTA || require("./prompt_whatsapp.js").NUMEROS.especialista).replace(/\D/g, "");
 function depsReales() {
   const st = require("./store.js"), wsp = require("./wsp_api.js"), A = require("./wsp_agent.js");
   st.conectar({ moderno: true });
   return { getEstado: st.getEstado, setEstado: st.setEstado, registrarEvento: st.registrarEvento, listarConvs: st.listarConvs, verificarConexion: wsp.verificarConexion,
     retomar: (tel) => A.retomar(tel, A.depsReales({ moderno: true })), rehacerResumen: (tel) => A.rehacerResumen(tel, A.depsReales({ moderno: true })), resumenAntiguo: A.resumenAntiguo,
-    ventanaEspecialista: async (ahora) => (ahora || Date.now()) - (await A.ultimoDelEspecialista(ESP())) < 23 * 3600 * 1000,
-    entregarAvisos: () => A.entregarAvisos(A.depsReales({ moderno: true }), ESP(), { soloCompletos: true }) };
+    especialistas: () => A.especialistas(), ventanaEspecialista: async (ahora, esp) => (ahora || Date.now()) - (await A.ultimoDelEspecialista(esp)) < 23 * 3600 * 1000,
+    entregarAvisos: (esp) => A.entregarAvisos(A.depsReales({ moderno: true }), esp, { soloCompletos: true }) };
 }
 
 module.exports = { ejecutar, depsReales, pendienteDe, aperturaFallida, MAX_APERTURAS };

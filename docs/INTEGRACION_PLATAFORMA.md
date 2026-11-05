@@ -46,7 +46,7 @@ Las líneas "Contacto rápido" (link wa.me con el teléfono) y "Gestión en la p
 | 500 | `{"error":…}` | error interno; reintentar con backoff (es idempotente: repetir no duplica saludos) |
 
 ## Comportamiento posterior (no requiere nada de la plataforma)
-- El bot conversa con la persona, valida datos y asesora. Cuando corresponde, deriva al especialista (+56 9 8538 0357) con un resumen por WhatsApp. Si la plataforma quiere recibir también esa derivación, Nico puede configurar `LEADS_WEBHOOK` en Netlify: el bot hará `POST` con `{stage:"derivacion_wsp", source:"whatsapp", name, phone, lead_id, urgencia, resumen, timestamp}` a la URL que indiquen.
+- El bot conversa con la persona, valida datos y asesora. Cuando corresponde, deriva al especialista (a la persona se le indica +56 9 5833 2604; el resumen llega por WhatsApp a ese número y al de Nico, +56 9 8538 0357). Si la plataforma quiere recibir también esa derivación, Nico puede configurar `LEADS_WEBHOOK` en Netlify: el bot hará `POST` con `{stage:"derivacion_wsp", source:"whatsapp", name, phone, lead_id, urgencia, resumen, timestamp}` a la URL que indiquen.
 - Para pruebas: `{"reiniciar":"+56 9 XXXX XXXX"}` con el mismo secreto borra la conversación guardada de ese número y permite repetir el flujo desde cero.
 - Todo lo que llega queda visible en el panel https://iasapre-chat.netlify.app/.netlify/functions/panel (pestaña Eventos: tipo `asignacion` abierta/retomada, origen `app.iasapre.cl`).
 

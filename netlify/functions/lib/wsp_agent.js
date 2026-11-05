@@ -117,14 +117,28 @@ async function derivar(conv, input, deps, motivoExtra) {
   conv.afiliabilidad = input.afiliabilidad || "Por confirmar";
   conv.derivado = true; conv.derivadoEn = new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" }); conv.derivadoT = Date.now(); conv.resumenDerivacion = d;
   let rs = null; try { rs = await deps.notificarEspecialista(d, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: urgenciaAviso(input.urgencia || "Media", conv.afiliabilidad === "Muy afiliable") }); } catch (e) { console.error("derivación", e && e.message); }
-  conv.avisoEntregado = entregadoComoTexto(rs); // si no llegó como texto, queda en cola hasta que el especialista escriba al asistente
+  conv.avisosEntregados = {}; marcarEntregas(conv, rs); // a quien no le llegó como texto le queda en cola hasta que escriba al asistente
   return d;
+}
+
+/** Números que reciben los avisos de derivación (el especialista que ven las personas y Nico). WSP_ESPECIALISTA admite varios separados por coma. */
+const especialistas = (env) => { env = env || process.env; return (env.WSP_ESPECIALISTA ? String(env.WSP_ESPECIALISTA).split(",") : NUMEROS.avisos).map(digitos).filter(Boolean); };
+const NICO = digitos(NUMEROS.nico);
+/** ¿El resumen de esta derivada ya le llegó como texto a `esp`? Conversaciones antiguas: solo existía avisoEntregado (era de Nico). */
+function entregadoA(c, esp) {
+  const m = c.avisosEntregados;
+  if (m && Object.prototype.hasOwnProperty.call(m, esp)) return m[esp] === true;
+  return esp === NICO ? c.avisoEntregado === true : false;
+}
+/** Anota, por especialista, si el aviso llegó como texto (resultados del notificador con `para`). Los que no figuran quedan en cola. */
+function marcarEntregas(conv, rs) {
+  const m = conv.avisosEntregados || (conv.avisosEntregados = Object.fromEntries(especialistas().map((e) => [e, entregadoA(conv, e)])));
+  const porPara = {}; for (const r of Array.isArray(rs) ? rs : rs ? [rs] : []) if (r && r.para) porPara[r.para] = !!(r.ok && r.via === "texto");
+  for (const e of especialistas()) m[e] = porPara[e] === true;
 }
 
 /** Urgencia para la plantilla y webhooks: con la alerta de muy afiliable a la vista. */
 const urgenciaAviso = (urg, muy) => (muy ? `${urg} · ⭐ MUY AFILIABLE` : urg);
-/** ¿El aviso al especialista llegó como texto (resumen completo)? La plantilla sola no cuenta: Meta puede frenarla (131049) y no trae el resumen. */
-const entregadoComoTexto = (rs) => { const w = Array.isArray(rs) ? rs[0] : rs; return !!(w && w.ok && w.via === "texto"); };
 const DIAS_AVISO = 3 * 24 * 3600 * 1000; // avisos en cola más viejos que esto ya no se reenvían solos (quedan en el panel)
 /** Hora de la derivación (derivadoT; en conversaciones antiguas se lee derivadoEn "15-10-2026, 19:03:18", hora de Chile). */
 function tDerivacion(c) {
@@ -132,8 +146,11 @@ function tDerivacion(c) {
   const m = /(\d{1,2})-(\d{1,2})-(\d{4}),?\s+(\d{1,2}):(\d{2})/.exec(c.derivadoEn || "");
   return m ? Date.parse(`${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}T${m[4].padStart(2, "0")}:${m[5]}:00-03:00`) || 0 : 0;
 }
-/** Derivada cuyo resumen aún no le llegó al especialista como texto. */
-function avisoPendiente(c, ahora) { return !!(c && c.derivado && c.avisoEntregado !== true && (ahora || Date.now()) - tDerivacion(c) < DIAS_AVISO); }
+/** Derivada reciente cuyo resumen aún no le llegó como texto a `esp` (sin `esp`: a alguno de los especialistas). La plantilla sola no cuenta: Meta puede frenarla (131049). */
+function avisoPendiente(c, ahora, esp) {
+  if (!(c && c.derivado && (ahora || Date.now()) - tDerivacion(c) < DIAS_AVISO)) return false;
+  return (esp ? [esp] : especialistas()).some((e) => !entregadoA(c, e));
+}
 /** Resumen de la derivación (guardado, o uno mínimo con link al panel para las derivadas antiguas). */
 function resumenDe(conv) {
   const L = conv.lead || {};
@@ -145,7 +162,8 @@ async function avisarNota(conv, nota, deps) {
   const aviso = `📝 Actualización IAsapre\nLead: ${L.nombre || conv.nombrePerfil || "Sin nombre"} · ${fmtCL(conv.telefono) || conv.telefono}${L.leadId ? "\nPlataforma: https://app.iasapre.cl/?lead=" + L.leadId : ""}\n${guard(nota)}`;
   conv.resumenDerivacion = resumenDe(conv) + `\n📝 ${new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" })}: ${guard(nota)}`;
   let rs = null; try { rs = await deps.notificarEspecialista(aviso, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: "Media", soloTexto: true }); } catch (e) { console.error("nota especialista", e && e.message); }
-  if (!entregadoComoTexto(rs)) conv.avisoEntregado = false;
+  const antes = Object.fromEntries(especialistas().map((e) => [e, entregadoA(conv, e)])); marcarEntregas(conv, rs);
+  for (const e of especialistas()) conv.avisosEntregados[e] = antes[e] && conv.avisosEntregados[e]; // la nota que no llegó deja el resumen en cola
 }
 const INSTR_RESUMEN = "Nota interna (no es un mensaje de la persona): esta conversación ya fue derivada al especialista, pero su resumen quedó con el formato antiguo e incompleto. Llama a la herramienta derivar con el resumen completo según la sección 3.3: todos los datos relevantes de la conversación y del formulario, la afiliabilidad con su razón, contacto preferido, un siguiente paso CONCRETO para el especialista (qué cotizar o gestionar, con qué clínicas y presupuesto) y el motivo de derivación. Completa todos los campos; ninguno vacío. No escribas nada a la persona.";
 /** Rehace con el formato completo (afiliabilidad, contacto, siguiente paso, formulario) el resumen de una derivada antigua. Conserva las notas 📝. */
@@ -167,9 +185,9 @@ const resumenAntiguo = (c) => avisoPendiente(c) && !/Afiliabilidad:/.test(c.resu
 async function marcarParaRehacer(deps) {
   let n = 0;
   for (const c of await deps.listarConvs()) {
-    if (!(c.derivado && c.avisoEntregado !== false && Date.now() - tDerivacion(c) < DIAS_AVISO && !/Afiliabilidad:/.test(c.resumenDerivacion || ""))) continue;
+    if (!(c.derivado && Date.now() - tDerivacion(c) < DIAS_AVISO && !/Afiliabilidad:/.test(c.resumenDerivacion || "") && especialistas().some((e) => entregadoA(c, e)))) continue;
     const conv = await deps.store.get(c.telefono); if (!conv) continue;
-    conv.avisoEntregado = false; await deps.store.set(c.telefono, conv); n++;
+    conv.avisosEntregados = Object.fromEntries(especialistas().map((e) => [e, false])); await deps.store.set(c.telefono, conv); n++;
   }
   return n;
 }
@@ -177,12 +195,12 @@ async function marcarParaRehacer(deps) {
 async function entregarAvisos(deps, esp, opciones) {
   const lista = deps.listarConvs ? await deps.listarConvs() : [];
   const soloCompletos = opciones && opciones.soloCompletos; // el vigía espera a que el resumen esté rehecho con el formato completo
-  const pend = lista.filter((c) => digitos(c.telefono) !== esp && avisoPendiente(c) && !(soloCompletos && resumenAntiguo(c))).sort((a, b) => tDerivacion(a) - tDerivacion(b)).slice(0, 25);
+  const pend = lista.filter((c) => !especialistas().includes(digitos(c.telefono)) && avisoPendiente(c, null, esp) && !(soloCompletos && resumenAntiguo(c))).sort((a, b) => tDerivacion(a) - tDerivacion(b)).slice(0, 25);
   let n = 0;
   for (const c of pend) {
     const res = resumenDe(c); const r = await deps.enviarTexto(esp, /Conversación: http/.test(res) ? res : res + "\nConversación: " + PANEL_URL + "?tel=" + digitos(c.telefono));
     if (!(r && r.ok)) continue;
-    n++; const conv = await deps.store.get(c.telefono); if (conv) { conv.avisoEntregado = true; await deps.store.set(c.telefono, conv); }
+    n++; const conv = await deps.store.get(c.telefono); if (conv) { if (!conv.avisosEntregados) conv.avisosEntregados = Object.fromEntries(especialistas().map((e) => [e, entregadoA(conv, e)])); conv.avisosEntregados[esp] = true; await deps.store.set(c.telefono, conv); }
   }
   return { n, total: pend.length };
 }
@@ -218,15 +236,15 @@ async function manejarEntrante(msg, deps) {
   }
 
   // 2) Conversación con una persona
-  if (from === digitos(process.env.WSP_ESPECIALISTA || NUMEROS.especialista) && /^#\s*reinici(ar|o)$/i.test(texto.trim())) { // solo el especialista: borra su propia conversación para volver a probar
+  const esps = especialistas();
+  if (esps.includes(from) && /^#\s*reinici(ar|o)$/i.test(texto.trim())) { // solo un especialista: borra su propia conversación para volver a probar
     if (deps.store.del) await deps.store.del(from);
     const rr = await deps.enviarTexto(from, MSG_REINICIO); return { tipo: "reinicio", enviado: !!(rr && rr.ok) };
   }
-  const esp = digitos(process.env.WSP_ESPECIALISTA || NUMEROS.especialista);
-  if (from === esp) { // su mensaje abre la ventana de 24 h: se anota y se le entregan los avisos que estaban en cola
-    if (deps.setEstado) { try { await deps.setEstado("especialista", { ultimo: Date.now() }); } catch (e) {} }
+  if (esps.includes(from)) { // su mensaje abre su ventana de 24 h: se anota y se le entregan los avisos que tenía en cola
+    if (deps.setEstado) { try { await deps.setEstado("especialista_" + from, { ultimo: Date.now() }); } catch (e) {} }
     const pedido = /^#\s*avisos?$/i.test(texto.trim());
-    const e = deps.listarConvs ? await entregarAvisos(deps, esp) : { n: 0, total: 0 };
+    const e = deps.listarConvs ? await entregarAvisos(deps, from) : { n: 0, total: 0 };
     if (e.n || pedido) {
       const rr = await deps.enviarTexto(from, e.n ? `📬 Te envié ${e.n} aviso(s) de derivación que estaban pendientes${e.total > e.n ? ` (${e.total - e.n} no salieron; revisa el panel)` : ""}. Para recibir cada derivación al momento con su resumen, escríbele cualquier cosa a este número una vez al día.` : "No hay avisos de derivación pendientes.");
       return { tipo: "avisos_entregados", n: e.n, enviado: !!(rr && rr.ok) };
@@ -266,7 +284,7 @@ async function marcarFalla(f, store) {
   if (!f || !f.para) return false; const conv = await store.get(f.para); if (!conv || !conv.historial) return false;
   let turno = conv.historial.find((h) => h.role === "assistant" && h.wamid && h.wamid === f.id);
   // Al número del especialista también van los avisos de derivación (no están en su conversación): sin wamid exacto no se marca nada.
-  if (!turno && digitos(f.para) === digitos(process.env.WSP_ESPECIALISTA || NUMEROS.especialista)) return false;
+  if (!turno && especialistas().includes(digitos(f.para))) return false;
   if (!turno) turno = [...conv.historial].reverse().find((h) => h.role === "assistant");
   if (!turno) return false;
   turno.enviado = false; turno.falla = `${f.code || ""} ${MOTIVO_FALLA[f.code] || f.title || ""}`.trim();
@@ -333,10 +351,10 @@ async function reenviarAviso(telefono, deps) {
   const L = conv.lead || {};
   const resumen = resumenDe(conv);
   const rs = await deps.notificarEspecialista(resumen, { nombre: L.nombre || conv.nombrePerfil, telefono: conv.telefono, leadId: L.leadId, urgencia: urgenciaAviso((/Urgencia: (Alta|Media|Baja)/.exec(resumen) || [])[1] || "Media", /MUY AFILIABLE/.test(resumen)) });
-  const ok = Array.isArray(rs) ? !!(rs[0] && rs[0].ok) : !!(rs && rs.ok);
-  conv.avisoEntregado = entregadoComoTexto(rs); if (!conv.derivadoT) conv.derivadoT = Date.now(); // vuelve a la cola si no llegó como texto
+  const ok = Array.isArray(rs) ? rs.some((r) => r && r.para && r.ok) || !!(rs[0] && rs[0].ok) : !!(rs && rs.ok);
+  conv.avisosEntregados = {}; marcarEntregas(conv, rs); if (!conv.derivadoT) conv.derivadoT = Date.now(); // vuelve a la cola de quien no lo recibió como texto
   await deps.store.set(tel, conv);
-  return { tipo: "aviso_reenviado", enviado: ok, texto: conv.avisoEntregado };
+  return { tipo: "aviso_reenviado", enviado: ok, texto: especialistas().every((e) => conv.avisosEntregados[e]), pendientes: especialistas().filter((e) => !conv.avisosEntregados[e]).map((e) => fmtCL(e) || e) };
 }
 
 /** deps reales (WhatsApp, Claude, Blobs) para usar fuera del webhook (panel). */
@@ -357,7 +375,7 @@ const VENTANA_ESP = 23 * 3600 * 1000;
 async function ultimoDelEspecialista(esp) {
   const st = require("./store.js"); let t = 0;
   try { const c = await st.getConv(esp); const u = c && [...(c.historial || [])].reverse().find((h) => h.role === "user"); t = u ? u.t || 0 : 0; } catch (e) {}
-  try { const e = await st.getEstado("especialista"); if (e && e.ultimo > t) t = e.ultimo; } catch (e) {}
+  for (const k of ["especialista_" + esp, ...(esp === NICO ? ["especialista"] : [])]) { try { const e = await st.getEstado(k); if (e && e.ultimo > t) t = e.ultimo; } catch (e) {} }
   return t;
 }
 function crearNotificador(wsp, env, opciones) {
@@ -385,9 +403,8 @@ function crearNotificador(wsp, env, opciones) {
     return { ...(r || { ok: false }), via: "plantilla" };
   }
   return async function notificarEspecialista(resumen, meta) {
-    const posts = [];
-    const esp = digitos(env.WSP_ESPECIALISTA || NUMEROS.especialista);
-    posts.push(porWhatsApp(esp, resumen, meta));
+    const posts = []; // primero un resultado por especialista (con `para`), después los webhooks
+    for (const esp of especialistas(env)) posts.push(porWhatsApp(esp, resumen, meta).then((r) => ({ ...(r || { ok: false }), para: esp }), () => ({ ok: false, via: "cola", para: esp })));
     for (const k of ["LEADS_WEBHOOK", "ZAPIER_WEBHOOK"]) if (env[k]) posts.push(fetch(env[k], { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage: "derivacion_wsp", source: "whatsapp", name: meta.nombre || "", phone: meta.telefono || "", lead_id: meta.leadId || "", urgencia: meta.urgencia || "Media", resumen, timestamp: new Date().toISOString() }) }).catch(() => {}));
     if (env.DISCORD_WEBHOOK) posts.push(fetch(env.DISCORD_WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: `🔔 **Derivación WhatsApp** · urgencia ${meta.urgencia || "Media"}\n**${meta.nombre || "Sin nombre"}** · ${fmtCL(meta.telefono) || meta.telefono || ""}${meta.leadId ? "\nhttps://app.iasapre.cl/?lead=" + meta.leadId : ""}\n(El resumen completo llegó por WhatsApp al especialista y al CRM)` }) }).catch(() => {}));
     const rs = await Promise.allSettled(posts);
@@ -448,4 +465,4 @@ function crearHandler(depsOverride) {
   };
 }
 
-module.exports = { manejarEntrante, retomar, reenviarAviso, entregarAvisos, rehacerResumen, resumenAntiguo, marcarParaRehacer, ultimoDelEspecialista, avisoPendiente, tDerivacion, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, TOOLS_DERIVADA, MSG_POST_DERIVACION, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
+module.exports = { especialistas, entregadoA, manejarEntrante, retomar, reenviarAviso, entregarAvisos, rehacerResumen, resumenAntiguo, marcarParaRehacer, ultimoDelEspecialista, avisoPendiente, tDerivacion, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, TOOLS_DERIVADA, MSG_POST_DERIVACION, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
