@@ -51,7 +51,10 @@ async function ejecutar(deps, ahora) {
   if (deps.ventanaEspecialista && deps.entregarAvisos) {
     salud.avisosEntregados = 0;
     for (const esp of deps.especialistas ? deps.especialistas() : [null]) { // cada especialista tiene su propia ventana y su propia cola
-      try { if (await deps.ventanaEspecialista(ahora, esp)) { const e = await deps.entregarAvisos(esp); salud.avisosEntregados += e.n; if (e.n) await deps.registrarEvento({ canal: "vigia", tipo: "avisos_entregados", accion: String(e.n), de: esp || undefined }).catch(() => {}); } } catch (e) { console.error("vigia avisos", e && e.message); }
+      try {
+        if (await deps.ventanaEspecialista(ahora, esp)) { const e = await deps.entregarAvisos(esp); salud.avisosEntregados += e.n; if (e.n) await deps.registrarEvento({ canal: "vigia", tipo: "avisos_entregados", accion: String(e.n), de: esp || undefined }).catch(() => {}); }
+        else if (deps.reintentarAlertas) { const a = await deps.reintentarAlertas(esp, ahora); salud.alertasReenviadas = (salud.alertasReenviadas || 0) + a.n; if (a.n) await deps.registrarEvento({ canal: "vigia", tipo: "alerta_plantilla", accion: String(a.n), de: esp || undefined }).catch(() => {}); } // ventana cerrada: alerta por plantilla para que escriba y reciba la cola
+      } catch (e) { console.error("vigia avisos", e && e.message); }
     }
   }
   // ¿Meta dejó de enviar? Última actividad de una persona vs. conversaciones activas en las últimas 24 h
@@ -68,7 +71,8 @@ function depsReales() {
   return { getEstado: st.getEstado, setEstado: st.setEstado, registrarEvento: st.registrarEvento, listarConvs: st.listarConvs, verificarConexion: wsp.verificarConexion,
     retomar: (tel) => A.retomar(tel, A.depsReales({ moderno: true })), rehacerResumen: (tel) => A.rehacerResumen(tel, A.depsReales({ moderno: true })), resumenAntiguo: A.resumenAntiguo,
     especialistas: () => A.especialistas(), ventanaEspecialista: async (ahora, esp) => (ahora || Date.now()) - (await A.ultimoDelEspecialista(esp)) < 23 * 3600 * 1000,
-    entregarAvisos: (esp) => A.entregarAvisos(A.depsReales({ moderno: true }), esp, { soloCompletos: true }) };
+    entregarAvisos: (esp) => A.entregarAvisos(A.depsReales({ moderno: true }), esp, { soloCompletos: true }),
+    reintentarAlertas: (esp, ahora) => A.reintentarAlertas({ ...A.depsReales({ moderno: true }), wsp, listarConvs: st.listarConvs }, esp, ahora) };
 }
 
 module.exports = { ejecutar, depsReales, pendienteDe, aperturaFallida, MAX_APERTURAS };

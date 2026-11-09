@@ -18,7 +18,7 @@ async function enviar(payload) {
     const r = await fetch(`${API}/${c.phoneId}/messages`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + c.token }, body: JSON.stringify({ messaging_product: "whatsapp", ...payload }) });
     const body = await r.json().catch(() => ({}));
     if (!r.ok) console.error("whatsapp api", r.status, body && body.error && body.error.message); // sin contenido del mensaje
-    return { ok: r.ok, status: r.status, id: body && body.messages && body.messages[0] && body.messages[0].id, error: body && body.error && body.error.message };
+    return { ok: r.ok, status: r.status, id: body && body.messages && body.messages[0] && body.messages[0].id, error: body && body.error && body.error.message, code: body && body.error && body.error.code };
   } catch (e) { console.error("whatsapp api", e && e.message); return { ok: false, status: 0, error: e && e.message }; }
 }
 

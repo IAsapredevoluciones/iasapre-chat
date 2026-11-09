@@ -378,10 +378,41 @@ async function ultimoDelEspecialista(esp) {
   for (const k of ["especialista_" + esp, ...(esp === NICO ? ["especialista"] : [])]) { try { const e = await st.getEstado(k); if (e && e.ultimo > t) t = e.ultimo; } catch (e) {} }
   return t;
 }
+/** Códigos de Meta que significan "esa plantilla no sirve" (probar la siguiente): 132001 no existe/no aprobada, 132015 pausada, 132016 deshabilitada. */
+const PLANTILLA_INEXISTENTE = new Set([132001, 132015, 132016]);
+const PLANTILLA_UTILIDAD = "aviso_derivacion";
+function plantillasDerivacion(env) { env = env || process.env; return [...new Set([env.WSP_TEMPLATE_DERIVACION_UTILIDAD || PLANTILLA_UTILIDAD, env.WSP_TEMPLATE_DERIVACION].filter(Boolean))]; }
+/** Vigía: a cada especialista con ventana cerrada y avisos en cola le reenvía la alerta por plantilla (máx. 3 intentos por conversación, cada 6 h),
+ *  para que sepa que tiene resúmenes esperando y le escriba al asistente. Devuelve cuántas alertas salieron. */
+async function reintentarAlertas(deps, esp, ahora) {
+  ahora = ahora || Date.now(); const wsp = deps.wsp; if (!wsp || !deps.listarConvs) return { n: 0 };
+  const nombres = plantillasDerivacion(process.env); if (!nombres.length) return { n: 0 };
+  const pend = (await deps.listarConvs()).filter((c) => !especialistas().includes(digitos(c.telefono)) && avisoPendiente(c, ahora, esp)).sort((a, b) => tDerivacion(a) - tDerivacion(b)).slice(0, 10);
+  let n = 0;
+  for (const c of pend) {
+    const conv = await deps.store.get(c.telefono); if (!conv) continue;
+    const al = (conv.alertas = conv.alertas || {}); const a = (al[esp] = al[esp] || { intentos: 0, ultimo: 0 });
+    if (a.intentos >= 3 || ahora - a.ultimo < 6 * 3600 * 1000) continue;
+    const L = conv.lead || {}; const urg = (/Urgencia: (Alta|Media|Baja)/.exec(conv.resumenDerivacion || "") || [])[1] || "Media";
+    const params = [L.nombre || conv.nombrePerfil || "Sin nombre", fmtCL(conv.telefono) || conv.telefono, urgenciaAviso(urg, conv.afiliabilidad === "Muy afiliable"), PANEL_URL + "?tel=" + digitos(conv.telefono)];
+    let r = null; for (const nombre of nombres) { r = await wsp.enviarPlantilla(esp, nombre, params); if (r && r.ok) break; if (!PLANTILLA_INEXISTENTE.has(r && r.code)) break; }
+    a.intentos++; a.ultimo = ahora; a.ok = !!(r && r.ok); if (a.ok) n++;
+    await deps.store.set(c.telefono, conv);
+  }
+  return { n, pendientes: pend.length };
+}
 function crearNotificador(wsp, env, opciones) {
   env = env || process.env;
   const ultimoEsp = (opciones && opciones.ultimoEsp) || ultimoDelEspecialista;
-  const plantilla = (esp, meta) => wsp.enviarPlantilla(esp, env.WSP_TEMPLATE_DERIVACION, [meta.nombre || "Sin nombre", fmtCL(meta.telefono) || meta.telefono || "", meta.urgencia || "Media", PANEL_URL + "?tel=" + digitos(meta.telefono)]);
+  // Plantillas, en orden: la de categoría Utilidad (aviso_derivacion; Meta no la limita) y, si no existe o no está aprobada aún (132001/132015),
+  // la de env (derivacion_iasapre, categoría Marketing, que Meta frena con 131049 cuando el especialista recibió varias).
+  const nombres = plantillasDerivacion(env);
+  const plantilla = async (esp, meta) => {
+    const params = [meta.nombre || "Sin nombre", fmtCL(meta.telefono) || meta.telefono || "", meta.urgencia || "Media", PANEL_URL + "?tel=" + digitos(meta.telefono)];
+    let r = { ok: false, error: "sin plantilla configurada" };
+    for (const nombre of nombres) { r = await wsp.enviarPlantilla(esp, nombre, params); if (r && r.ok) return { ...r, plantilla: nombre }; if (!PLANTILLA_INEXISTENTE.has(r && r.code)) break; }
+    return r || { ok: false };
+  };
   async function porWhatsApp(esp, resumen, meta) {
     // Texto libre solo llega si el especialista escribió al asistente en las últimas 24 h. Meta acepta el envío igual y avisa
     // el rechazo después (131047), así que se decide ANTES: fuera de la ventana va directo la plantilla (con link al panel, donde está el resumen).
@@ -389,7 +420,7 @@ function crearNotificador(wsp, env, opciones) {
     const t = await ultimoEsp(esp);
     const dentro = t && Date.now() - t < VENTANA_ESP;
     if (!dentro) {
-      if (meta.soloTexto || !env.WSP_TEMPLATE_DERIVACION) return { ok: false, via: "cola" };
+      if (meta.soloTexto || !nombres.length) return { ok: false, via: "cola" };
       const rp = await plantilla(esp, meta);
       if (!(rp && rp.ok)) console.error("derivación: plantilla al especialista rebotó", rp && rp.status, rp && rp.error);
       return { ...(rp || { ok: false }), via: "plantilla" };
@@ -397,7 +428,7 @@ function crearNotificador(wsp, env, opciones) {
     let r = await wsp.enviarTexto(esp, resumen);
     if (r && r.ok) return { ...r, via: "texto" };
     console.error("derivación: texto al especialista rebotó", r && r.status, r && r.error);
-    if (!env.WSP_TEMPLATE_DERIVACION || meta.soloTexto) return { ...(r || { ok: false }), via: "cola" };
+    if (!nombres.length || meta.soloTexto) return { ...(r || { ok: false }), via: "cola" };
     r = await plantilla(esp, meta);
     if (!(r && r.ok)) console.error("derivación: plantilla al especialista rebotó", r && r.status, r && r.error);
     return { ...(r || { ok: false }), via: "plantilla" };
@@ -465,4 +496,4 @@ function crearHandler(depsOverride) {
   };
 }
 
-module.exports = { especialistas, entregadoA, manejarEntrante, retomar, reenviarAviso, entregarAvisos, rehacerResumen, resumenAntiguo, marcarParaRehacer, ultimoDelEspecialista, avisoPendiente, tDerivacion, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, TOOLS_DERIVADA, MSG_POST_DERIVACION, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
+module.exports = { especialistas, entregadoA, reintentarAlertas, plantillasDerivacion, manejarEntrante, retomar, reenviarAviso, entregarAvisos, rehacerResumen, resumenAntiguo, marcarParaRehacer, ultimoDelEspecialista, avisoPendiente, tDerivacion, marcarFalla, depsReales, crearHandler, crearNotificador, cuerpoClaude, leerRespuesta, mensajes, contexto, nuevaConv, TOOLS, TOOLS_DERIVADA, MSG_POST_DERIVACION, MODEL, MSG_DERIVACION, MSG_AUDIO, MSG_NO_TEXTO, MSG_REINICIO, claudeHTTP };
